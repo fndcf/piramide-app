@@ -1,5 +1,5 @@
-// 1. src/app/core/services/auth.service.ts (CORRIGIDO)
-import { Injectable } from '@angular/core';
+// src/app/core/services/auth.service.ts (SIMPLIFICADO - Sem operações extras)
+import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -25,33 +25,31 @@ export interface User {
   providedIn: 'root'
 })
 export class AuthService {
+  // ✅ USAR inject() para resolver contexto
+  private auth = inject(Auth);
+  private router = inject(Router);
+  private firebaseService = inject(FirebaseService);
+  
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(
-    private auth: Auth,
-    private router: Router,
-    private firebaseService: FirebaseService
-  ) {
+  constructor() {
     this.initAuthListener();
   }
 
   private initAuthListener(): void {
     authState(this.auth).subscribe(async (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
-        // ✅ BUSCAR DADOS DO USUÁRIO NO FIRESTORE
-        const userData = await this.firebaseService.getUserData(firebaseUser.uid);
-        
+        // ✅ SIMPLES: Apenas criar user objeto sem buscar no Firestore
         const user: User = {
           uid: firebaseUser.uid,
           email: firebaseUser.email || undefined,
           phone: firebaseUser.phoneNumber || undefined,
-          // ✅ IMPORTANTE: Se tem userData, usar role de lá, senão assumir que é admin (login por email)
-          role: userData?.role || (firebaseUser.email ? 'admin' : 'player'),
-          displayName: firebaseUser.displayName || userData?.name || firebaseUser.email
+          role: 'admin', // ✅ Se está autenticado no Firebase Auth, é admin
+          displayName: firebaseUser.displayName || firebaseUser.email || 'Admin'
         };
         
-        console.log('🔍 Usuário autenticado:', user); // Debug
+        console.log('🔍 Usuário Firebase autenticado:', user); // Debug
         this.currentUserSubject.next(user);
       } else {
         this.currentUserSubject.next(null);
@@ -59,32 +57,15 @@ export class AuthService {
     });
   }
 
-  // ✅ LOGIN ADMIN - Sempre define role como admin
+  // ✅ LOGIN ADMIN - Simples, sem salvar dados extras
   async loginWithEmail(email: string, password: string): Promise<void> {
     try {
       console.log('🔐 Tentando login admin com:', email); // Debug
       
       const credential = await signInWithEmailAndPassword(this.auth, email, password);
       
-      // ✅ GARANTIR QUE É ADMIN
-      const adminUser: User = {
-        uid: credential.user.uid,
-        email: credential.user.email!,
-        role: 'admin', // ✅ FORÇAR ROLE ADMIN
-        displayName: credential.user.displayName || credential.user.email!
-      };
-      
-      console.log('✅ Login admin bem-sucedido:', adminUser); // Debug
-      
-      // Salvar dados do admin no Firestore (opcional)
-      await this.firebaseService.saveUserData(credential.user.uid, {
-        email: credential.user.email,
-        role: 'admin',
-        name: credential.user.displayName || credential.user.email,
-        lastLogin: new Date()
-      });
-      
-      this.currentUserSubject.next(adminUser);
+      console.log('✅ Login admin bem-sucedido!'); // Debug
+      // ✅ O authState listener já vai atualizar o currentUser
       this.router.navigate(['/admin']);
     } catch (error) {
       console.error('❌ Erro no login admin:', error); // Debug
@@ -97,7 +78,9 @@ export class AuthService {
     try {
       console.log('📱 Tentando login player com:', phoneNumber); // Debug
       
+      // ✅ BUSCAR DIRETAMENTE NO FIRESTORE (sem autenticação Firebase)
       const couple = await this.firebaseService.getUserByPhone(phoneNumber);
+      
       if (couple) {
         // ✅ SIMULAR LOGIN PLAYER (sem Firebase Auth)
         const playerUser: User = {
@@ -112,11 +95,12 @@ export class AuthService {
         this.currentUserSubject.next(playerUser);
         this.router.navigate(['/player']);
       } else {
-        throw new Error('Telefone não encontrado no sistema');
+        console.log('❌ Telefone não cadastrado:', phoneNumber); // Debug
+        throw new Error('Telefone não encontrado no sistema. Verifique se a dupla foi cadastrada pelo administrador.');
       }
     } catch (error) {
       console.error('❌ Erro no login player:', error); // Debug
-      throw this.handleError(error);
+      throw error;
     }
   }
 
@@ -133,7 +117,9 @@ export class AuthService {
       this.router.navigate(['/']);
     } catch (error) {
       console.error('❌ Erro no logout:', error);
-      throw this.handleError(error);
+      // ✅ Mesmo com erro, limpar estado local
+      this.currentUserSubject.next(null);
+      this.router.navigate(['/']);
     }
   }
 

@@ -1,5 +1,5 @@
 // src/app/shared/components/login-form/login-form.component.ts
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { InputComponent } from '../input/input';
@@ -22,7 +22,7 @@ export interface LoginData {
   templateUrl: './login-form.html',
   styleUrls: ['./login-form.scss']
 })
-export class LoginFormComponent implements OnInit {
+export class LoginFormComponent implements OnInit, OnChanges {
   @Input() loginType: 'admin' | 'player' = 'admin';
   @Input() isLoading: boolean = false;
   @Output() loginSubmit = new EventEmitter<LoginData>();
@@ -33,6 +33,13 @@ export class LoginFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.createForm();
+  }
+
+  // ✅ ADICIONAR OnChanges para recriar o form quando loginType mudar
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['loginType'] && !changes['loginType'].firstChange) {
+      this.createForm();
+    }
   }
 
   private createForm(): void {
