@@ -1,0 +1,20 @@
+<div class="input-group">
+  <label *ngIf="label" class="input-label">
+    {{ label }}
+    <span *ngIf="required" class="required">*</span>
+  </label>
+  
+  <input
+    [type]="type"
+    [placeholder]="placeholder"
+    [value]="value"
+    [disabled]="disabled"
+    (input)="onInput($event)"
+    (blur)="onBlur()"
+    class="input-field"
+    [class.input-error]="error" />
+  
+  <div *ngIf="error" class="error-message">
+    {{ error }}
+  </div>
+</div>

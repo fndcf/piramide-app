@@ -1,0 +1,8 @@
+
+<button
+  [type]="type"
+  [disabled]="disabled || loading"
+  [class]="buttonClasses">
+  <span *ngIf="loading" class="loading-spinner"></span>
+  <ng-content></ng-content>
+</button>

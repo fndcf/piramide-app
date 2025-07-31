@@ -1,0 +1,45 @@
+<form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+  <div class="form-title">
+    <h3>{{ loginType === 'admin' ? 'Login Administrador' : 'Login Jogador' }}</h3>
+  </div>
+
+  <!-- Admin Login -->
+  <div *ngIf="loginType === 'admin'">
+    <app-input
+      formControlName="email"
+      label="Email"
+      type="email"
+      placeholder="Digite seu email"
+      [error]="getErrorMessage('email')">
+    </app-input>
+
+    <app-input
+      formControlName="password"
+      label="Senha"
+      type="password"
+      placeholder="Digite sua senha"
+      [error]="getErrorMessage('password')">
+    </app-input>
+  </div>
+
+  <!-- Player Login -->
+  <div *ngIf="loginType === 'player'">
+    <app-input
+      formControlName="phone"
+      label="Telefone"
+      type="tel"
+      placeholder="Digite seu telefone (apenas números)"
+      [error]="getErrorMessage('phone')">
+    </app-input>
+  </div>
+
+  <app-button
+    type="submit"
+    [disabled]="loginForm.invalid || isLoading"
+    [loading]="isLoading"
+    variant="primary"
+    size="large"
+    [fullWidth]="true">
+    {{ isLoading ? 'Entrando...' : 'Entrar' }}
+  </app-button>
+</form>

@@ -1,0 +1,45 @@
+<form [formGroup]="coupleForm" (ngSubmit)="onSubmit()" class="add-couple-form">
+  <div class="form-description">
+    <p>Preencha as informações da nova dupla abaixo:</p>
+  </div>
+
+  <app-input
+    formControlName="player1Name"
+    label="Nome do Jogador 1"
+    type="text"
+    placeholder="Digite o nome do primeiro jogador"
+    [error]="getErrorMessage('player1Name')">
+  </app-input>
+
+  <app-input
+    formControlName="player2Name"
+    label="Nome do Jogador 2"
+    type="text"
+    placeholder="Digite o nome do segundo jogador"
+    [error]="getErrorMessage('player2Name')">
+  </app-input>
+
+  <app-input
+    formControlName="responsiblePhone"
+    label="Telefone do Responsável"
+    type="tel"
+    placeholder="Digite o telefone (apenas números)"
+    [error]="getErrorMessage('responsiblePhone')">
+  </app-input>
+
+  <div class="form-note">
+    <small>* O telefone será usado para login da dupla no sistema</small>
+  </div>
+
+  <div class="form-actions">
+    <app-button
+      type="submit"
+      [disabled]="coupleForm.invalid || isLoading"
+      [loading]="isLoading"
+      variant="primary"
+      size="large"
+      [fullWidth]="true">
+      {{ isLoading ? 'Adicionando...' : 'Adicionar Dupla' }}
+    </app-button>
+  </div>
+</form>

@@ -1,0 +1,77 @@
+<div class="player-dashboard">
+  <header class="dashboard-header">
+    <div class="header-content">
+      <h1>Dashboard Jogador</h1>
+      <div class="header-actions">
+        <span class="user-greeting">{{ (currentUser?.phone || '') | phone }}</span>
+        <app-button variant="outline" size="small" (click)="logout()">
+          Sair
+        </app-button>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-main">
+    <!-- Informações da Minha Dupla -->
+    <section class="my-couple-section" *ngIf="myCouple$ | async as myCouple">
+      <div class="section-header">
+        <h2>Minha Dupla</h2>
+      </div>
+      
+      <div class="my-couple-card" *ngIf="allCouples$ | async as allCouples">
+        <div class="couple-info">
+          <h3>{{ myCouple.player1Name }} / {{ myCouple.player2Name }}</h3>
+          <div class="couple-stats">
+            <div class="stat">
+              <span class="stat-label">Posição:</span>
+              <span class="stat-value position">{{ getPosition(allCouples, myCouple) }}º</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Pontos:</span>
+              <span class="stat-value points">{{ myCouple.points || 0 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Ranking Geral -->
+    <section class="ranking-section">
+      <div class="section-header">
+        <h2>Ranking Geral</h2>
+      </div>
+
+      <div class="ranking-list" *ngIf="allCouples$ | async as allCouples; else loading">
+        <div class="ranking-item" 
+             *ngFor="let couple of allCouples; let i = index; trackBy: trackByCouple"
+             [class.my-couple]="(myCouple$ | async) && couple.id === (myCouple$ | async)?.id">
+          
+          <div class="position-badge">
+            {{ i + 1 }}º
+          </div>
+          
+          <div class="couple-details">
+            <h4>{{ couple.player1Name }} / {{ couple.player2Name }}</h4>
+            <span class="points">{{ couple.points || 0 }} pontos</span>
+          </div>
+
+          <div class="couple-actions" *ngIf="myCouple$ | async as myCouple">
+            <app-button 
+              *ngIf="canChallenge(myCouple, couple, getPosition(allCouples, myCouple), i + 1)"
+              variant="primary" 
+              size="small"
+              (click)="challengeCouple(couple)">
+              Desafiar
+            </app-button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #loading>
+        <div class="loading-state">
+          <p>Carregando ranking...</p>
+        </div>
+      </ng-template>
+    </section>
+  </main>
+</div>

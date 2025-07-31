@@ -1,0 +1,31 @@
+// src/app/features/admin/add-couple/add-couple.component.scss
+.add-couple-form {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.form-description {
+  margin-bottom: 1.5rem;
+  
+  p {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0;
+    text-align: center;
+  }
+}
+
+.form-note {
+  margin-bottom: 1.5rem;
+  text-align: center;
+  
+  small {
+    color: #888;
+    font-size: 0.85rem;
+  }
+}
+
+.form-actions {
+  margin-top: 1rem;
+}

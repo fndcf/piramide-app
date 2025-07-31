@@ -1,0 +1,61 @@
+<div class="home-container">
+  <div class="hero-section">
+    <div class="hero-content">
+      <h1 class="hero-title">Sistema Pirâmide</h1>
+      <p class="hero-subtitle">Gerencie rankings e desafios entre duplas</p>
+      
+      <div class="login-buttons" *ngIf="!currentUser">
+        <app-button 
+          variant="primary" 
+          size="large"
+          (click)="openLogin('admin')">
+          Login Administrador
+        </app-button>
+        
+        <app-button 
+          variant="outline" 
+          size="large"
+          (click)="openLogin('player')">
+          Login Jogador
+        </app-button>
+      </div>
+
+      <div class="user-info" *ngIf="currentUser">
+        <p>Bem-vindo, {{ currentUser?.displayName || currentUser?.email }}!</p>
+        <div class="user-actions">
+          <app-button 
+            variant="primary" 
+            size="medium"
+            (click)="redirectUser(currentUser!)">
+            Ir para Dashboard
+          </app-button>
+          
+          <app-button 
+            variant="outline" 
+            size="medium"
+            (click)="logout()">
+            Sair
+          </app-button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Login -->
+  <app-modal 
+    [isOpen]="showModal"
+    title=""
+    size="small"
+    (closeModal)="closeModal()">
+    
+    <app-login-form
+      [loginType]="loginType"
+      [isLoading]="isLoading"
+      (loginSubmit)="onLogin($event)">
+    </app-login-form>
+    
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+  </app-modal>
+</div>

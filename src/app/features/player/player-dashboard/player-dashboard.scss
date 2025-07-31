@@ -1,0 +1,197 @@
+// src/app/features/player/player-dashboard/player-dashboard.component.scss
+.player-dashboard {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.dashboard-header {
+  background-color: white;
+  border-bottom: 1px solid #e9ecef;
+  padding: 1rem 0;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+
+  h1 {
+    margin: 0;
+    color: #333;
+    font-size: 1.8rem;
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  
+  .user-greeting {
+    color: #666;
+    font-size: 0.9rem;
+  }
+}
+
+.dashboard-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.section-header {
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin: 0;
+    color: #333;
+    font-size: 1.5rem;
+  }
+}
+
+// Minha Dupla
+.my-couple-section {
+  margin-bottom: 3rem;
+}
+
+.my-couple-card {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+
+  .couple-info {
+    h3 {
+      margin: 0 0 1rem 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+  }
+
+  .couple-stats {
+    display: flex;
+    gap: 2rem;
+    
+    @media (max-width: 480px) {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      
+      .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-bottom: 0.25rem;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        
+        &.position {
+          color: #ffd700;
+        }
+        
+        &.points {
+          color: #90ee90;
+        }
+      }
+    }
+  }
+}
+
+// Ranking
+.ranking-section {
+  .ranking-list {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s ease;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background-color: #f8f9fa;
+    }
+
+    &.my-couple {
+      background-color: #e3f2fd;
+      border-left: 4px solid #007bff;
+      
+      &:hover {
+        background-color: #bbdefb;
+      }
+    }
+
+    .position-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #6c757d;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      margin-right: 1rem;
+      flex-shrink: 0;
+
+      .ranking-item:first-child & {
+        background-color: #ffd700;
+        color: #333;
+      }
+
+      .ranking-item:nth-child(2) & {
+        background-color: #c0c0c0;
+        color: #333;
+      }
+
+      .ranking-item:nth-child(3) & {
+        background-color: #cd7f32;
+        color: white;
+      }
+    }
+
+    .couple-details {
+      flex: 1;
+      
+      h4 {
+        margin: 0 0 0.25rem 0;
+        color: #333;
+        font-size: 1.1rem;
+      }
+
+      .points {
+        color: #666;
+        font-size: 0.9rem;
+      }
+    }
+
+    .couple-actions {
+      margin-left: 1rem;
+    }
+  }
+}
+
+.loading-state {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+}

@@ -1,0 +1,22 @@
+
+<div class="modal-overlay" 
+     *ngIf="isOpen" 
+     (click)="onBackdropClick($event)"
+     [@fadeInOut]>
+  <div class="modal-container" 
+       [ngClass]="'modal-' + size"
+       [@slideInOut]>
+    <div class="modal-header" *ngIf="title || showCloseButton">
+      <h2 class="modal-title" *ngIf="title">{{ title }}</h2>
+      <button class="modal-close-btn" 
+              *ngIf="showCloseButton"
+              (click)="onClose()"
+              type="button">
+        <span>&times;</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <ng-content></ng-content>
+    </div>
+  </div>
+</div>

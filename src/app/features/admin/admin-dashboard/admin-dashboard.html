@@ -1,0 +1,61 @@
+<div class="admin-dashboard">
+  <header class="dashboard-header">
+    <div class="header-content">
+      <h1>Dashboard Administrador</h1>
+      <div class="header-actions">
+        <span class="user-greeting">Olá, {{ currentUser?.email }}</span>
+        <app-button variant="outline" size="small" (click)="logout()">
+          Sair
+        </app-button>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-main">
+    <div class="content-header">
+      <h2>Duplas Cadastradas</h2>
+      <app-button variant="primary" (click)="openAddCoupleModal()">
+        Adicionar Dupla
+      </app-button>
+    </div>
+
+    <div class="couples-list">
+      <div class="couples-grid" *ngIf="couples$ | async as couples; else loading">
+        <div class="couple-card" *ngFor="let couple of couples; trackBy: trackByCouple">
+          <div class="couple-info">
+            <h3>{{ couple.player1Name }} / {{ couple.player2Name }}</h3>
+            <p class="phone">{{ couple.responsiblePhone | phone }}</p>
+            <p class="points">{{ couple.points || 0 }} pontos</p>
+          </div>
+          <div class="couple-actions">
+            <app-button 
+              variant="danger" 
+              size="small"
+              (click)="deleteCouple(couple)">
+              Excluir
+            </app-button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #loading>
+        <div class="loading-state">
+          <p>Carregando duplas...</p>
+        </div>
+      </ng-template>
+    </div>
+  </main>
+
+  <!-- Modal Adicionar Dupla -->
+  <app-modal
+    [isOpen]="showAddCoupleModal"
+    title="Adicionar Nova Dupla"
+    size="medium"
+    (closeModal)="closeAddCoupleModal()">
+
+    <app-add-couple
+      [isLoading]="isLoading"
+      (coupleAdded)="onCoupleAdded($event)">
+    </app-add-couple>
+  </app-modal>
+</div>

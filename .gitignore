@@ -40,3 +40,16 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Firebase - IMPORTANTE para segurança
+/src/environments/environment.ts
+/src/environments/environment.prod.ts
+/src/environments/environment.development.ts
+.env
+.env.local
+.env.production
+
+# Firebase cache e configurações locais
+.firebase/
+.firebaserc
+firebase-debug.log
