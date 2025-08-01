@@ -76,30 +76,43 @@ export class AuthService {
   // ✅ LOGIN PLAYER - Verifica se telefone existe na coleção couples
   async loginWithPhone(phoneNumber: string): Promise<void> {
     try {
-      console.log('📱 Tentando login player com:', phoneNumber); // Debug
+      console.log('📱 Tentando login player com:', phoneNumber);
       
-      // ✅ BUSCAR DIRETAMENTE NO FIRESTORE (sem autenticação Firebase)
-      const couple = await this.firebaseService.getUserByPhone(phoneNumber);
+      // ✅ USAR O MÉTODO CORRETO (sem await, retorna Observable)
+      const couple$ = this.firebaseService.getCoupleByPhone(phoneNumber);
+      
+      const couple = await new Promise<any>((resolve, reject) => {
+        const subscription = couple$.subscribe({
+          next: (result) => {
+            subscription.unsubscribe();
+            resolve(result);
+          },
+          error: (error) => {
+            subscription.unsubscribe();
+            reject(error);
+          }
+        });
+      });
       
       if (couple) {
         // ✅ SIMULAR LOGIN PLAYER (sem Firebase Auth)
         const playerUser: User = {
-          uid: `player_${phoneNumber}`, // ID único para player
+          uid: `player_${phoneNumber}`,
           phone: phoneNumber,
-          role: 'player', // ✅ FORÇAR ROLE PLAYER
+          role: 'player',
           displayName: `${couple.player1Name} / ${couple.player2Name}`
         };
         
-        console.log('✅ Login player bem-sucedido:', playerUser); // Debug
+        console.log('✅ Login player bem-sucedido:', playerUser);
         
         this.currentUserSubject.next(playerUser);
         this.router.navigate(['/player']);
       } else {
-        console.log('❌ Telefone não cadastrado:', phoneNumber); // Debug
+        console.log('❌ Telefone não cadastrado:', phoneNumber);
         throw new Error('Telefone não encontrado no sistema. Verifique se a dupla foi cadastrada pelo administrador.');
       }
     } catch (error) {
-      console.error('❌ Erro no login player:', error); // Debug
+      console.error('❌ Erro no login player:', error);
       throw error;
     }
   }

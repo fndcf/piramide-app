@@ -26,6 +26,8 @@ export class AdminDashboardComponent implements OnInit {
   currentUser: User | null = null;
   couples$!: Observable<Couple[]>;
   showAddCoupleModal = false;
+  showStatsModal = false;
+  selectedCouple: Couple | null = null;
   isLoading = false;
 
   constructor(
@@ -38,6 +40,45 @@ export class AdminDashboardComponent implements OnInit {
     this.couples$ = this.firebaseService.getCouples();
   }
 
+  // ✅ MÉTODO PARA USAR Math NO TEMPLATE
+  getMathAbs(value: number): number {
+    return Math.abs(value);
+  }
+
+  // ✅ NOVOS MÉTODOS PARA ESTATÍSTICAS
+  viewStats(couple: Couple): void {
+    this.selectedCouple = couple;
+    this.showStatsModal = true;
+  }
+
+  closeStatsModal(): void {
+    this.showStatsModal = false;
+    this.selectedCouple = null;
+  }
+
+  getStreakIcon(streak: number): string {
+    if (streak > 0) return '🔥';
+    if (streak < 0) return '❄️';
+    return '➖';
+  }
+
+  getStreakText(streak: number): string {
+    if (streak > 0) return 'Sequência de Vitórias';
+    if (streak < 0) return 'Sequência de Derrotas';
+    return 'Sem Sequência';
+  }
+
+  formatDate(date: Date): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  }
+
+  // ✅ MÉTODOS EXISTENTES MANTIDOS
   openAddCoupleModal(): void {
     this.showAddCoupleModal = true;
   }
@@ -79,4 +120,12 @@ export class AdminDashboardComponent implements OnInit {
   trackByCouple(index: number, couple: Couple): any {
     return couple.id || index;
   }
+
+  getPositionClass(index: number): string {
+    if (index === 0) return 'first';
+    if (index === 1) return 'second';
+    if (index === 2) return 'third';
+    return 'regular';
+  }
+
 }

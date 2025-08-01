@@ -1,4 +1,3 @@
-<!-- src/app/features/player/player-dashboard/player-dashboard.component.html - ATUALIZADO -->
 <div class="player-dashboard">
   <header class="dashboard-header">
     <div class="header-content">
@@ -31,58 +30,117 @@
 
     <!-- ✅ ABA DO RANKING -->
     <div class="tab-content" *ngIf="selectedTab === 'ranking'">
-      <!-- Informações da Minha Dupla -->
+      <!-- ✅ INFORMAÇÕES DA MINHA DUPLA COM ESTATÍSTICAS -->
       <section class="my-couple-section" *ngIf="myCouple$ | async as myCouple">
         <div class="section-header">
           <h2>Minha Dupla</h2>
         </div>
         
-        <div class="my-couple-card" *ngIf="allCouples$ | async as allCouples">
+        <div class="my-couple-card">
           <div class="couple-info">
             <h3>{{ myCouple.player1Name }} / {{ myCouple.player2Name }}</h3>
+            
+            <!-- ✅ ESTATÍSTICAS PRINCIPAIS -->
             <div class="couple-stats">
               <div class="stat">
-                <span class="stat-label">Posição:</span>
-                <span class="stat-value position">{{ getPosition(allCouples, myCouple) }}º</span>
+                <span class="stat-label">Posição Atual:</span>
+                <span class="stat-value position">{{ myCouple.position }}º lugar</span>
               </div>
               <div class="stat">
-                <span class="stat-label">Pontos:</span>
-                <span class="stat-value points">{{ myCouple.points || 0 }}</span>
+                <span class="stat-label">Vitórias/Derrotas:</span>
+                <span class="stat-value record">{{ myCouple.stats.victories }}-{{ myCouple.stats.defeats }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Taxa de Vitória:</span>
+                <span class="stat-value winrate">{{ myCouple.stats.winRate }}%</span>
+              </div>
+            </div>
+
+            <!-- ✅ ESTATÍSTICAS DETALHADAS -->
+            <div class="detailed-stats">
+              <div class="stats-row">
+                <div class="mini-stat">
+                  <span class="mini-value">{{ myCouple.stats.totalGames }}</span>
+                  <span class="mini-label">Jogos</span>
+                </div>
+                <div class="mini-stat" [class.positive]="myCouple.stats.currentStreak > 0" 
+                                      [class.negative]="myCouple.stats.currentStreak < 0">
+                  <span class="mini-value">{{ getMathAbs(myCouple.stats.currentStreak) }}</span>
+                  <span class="mini-label">{{ getStreakLabel(myCouple.stats.currentStreak) }}</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-value">{{ myCouple.stats.bestStreak }}</span>
+                  <span class="mini-label">Melhor</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Ranking Geral -->
+      <!-- ✅ RANKING GERAL COM POSIÇÕES E BOTÕES -->
       <section class="ranking-section">
         <div class="section-header">
           <h2>Ranking Geral</h2>
+          <p class="ranking-info">Você pode desafiar duplas até 2 posições acima da sua</p>
         </div>
 
         <div class="ranking-list" *ngIf="allCouples$ | async as allCouples; else loading">
           <div class="ranking-item" 
                *ngFor="let couple of allCouples; let i = index; trackBy: trackByCouple"
-               [class.my-couple]="(myCouple$ | async) && couple.id === (myCouple$ | async)?.id">
+               [class.my-couple]="(myCouple$ | async) && couple.id === (myCouple$ | async)?.id"
+               [class.challengeable]="(myCouple$ | async) && canChallenge((myCouple$ | async)!, couple)"
+               [class.podium]="i < 3">
             
-            <div class="position-badge">
-              {{ i + 1 }}º
+            <!-- ✅ BADGE DE POSIÇÃO COM CORES -->
+            <div class="position-badge" [class]="getPositionBadgeClass(couple.position)">
+              {{ couple.position }}º
             </div>
             
+            <!-- ✅ DETALHES DA DUPLA COM ESTATÍSTICAS -->
             <div class="couple-details">
               <h4>{{ couple.player1Name }} / {{ couple.player2Name }}</h4>
-              <span class="points">{{ couple.points || 0 }} pontos</span>
+              <div class="position-description">{{ getPositionDescription(couple.position) }}</div>
+              
+              <!-- ✅ ESTATÍSTICAS NO RANKING -->
+              <div class="ranking-stats">
+                <span class="stat-item">
+                  <strong>{{ couple.stats.victories }}-{{ couple.stats.defeats }}</strong>
+                  ({{ couple.stats.winRate }}%)
+                </span>
+                <span class="stat-separator">•</span>
+                <span class="stat-item">{{ couple.stats.totalGames }} jogos</span>
+                
+                <span class="streak-indicator" *ngIf="couple.stats.currentStreak !== 0"
+                      [class.hot-streak]="couple.stats.currentStreak >= 3"
+                      [class.cold-streak]="couple.stats.currentStreak <= -3">
+                  {{ getStreakDisplay(couple.stats.currentStreak) }}
+                </span>
+              </div>
             </div>
 
+            <!-- ✅ AÇÕES DA DUPLA (BOTÕES DE DESAFIO) -->
             <div class="couple-actions" *ngIf="myCouple$ | async as myCouple">
+              <!-- ✅ BOTÃO DESAFIAR -->
               <app-button 
-                *ngIf="canChallenge(myCouple, couple, getPosition(allCouples, myCouple), i + 1)"
+                *ngIf="canChallenge(myCouple, couple)"
                 variant="primary" 
                 size="small"
                 [loading]="isLoading"
                 (click)="challengeCouple(couple)">
-                Desafiar
+                ⚔️ Desafiar
               </app-button>
+              
+              <!-- ✅ MOTIVO POR QUE NÃO PODE DESAFIAR -->
+              <span *ngIf="!canChallenge(myCouple, couple) && couple.id !== myCouple.id" 
+                    class="cannot-challenge">
+                {{ getCannotChallengeReason(myCouple, couple) }}
+              </span>
+              
+              <!-- ✅ INDICADOR DA SUA POSIÇÃO -->
+              <span *ngIf="couple.id === myCouple.id" class="my-position">
+                ✨ Sua posição atual
+              </span>
             </div>
           </div>
         </div>
@@ -103,6 +161,17 @@
           <p class="section-description">
             Acompanhe seus desafios enviados e recebidos
           </p>
+          
+          <!-- ✅ BOTÃO TEMPORÁRIO PARA TESTAR HORÁRIOS -->
+          <div class="debug-actions" style="margin: 1rem 0; padding: 1rem; background: #fff3cd; border-radius: 8px;">
+            <p><strong>🧪 Teste:</strong> Use este botão se o resultado não apareceu na hora:</p>
+            <app-button 
+              variant="danger" 
+              size="small"
+              (click)="forceCheckGameTime()">
+              🔄 Verificar Horários Agora
+            </app-button>
+          </div>
         </div>
 
         <div class="challenges-list" *ngIf="challenges$ | async as challenges; else loadingChallenges">

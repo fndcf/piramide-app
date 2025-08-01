@@ -1,4 +1,3 @@
-// src/app/features/player/player-dashboard/player-dashboard.component.scss - ATUALIZADO
 .player-dashboard {
   min-height: 100vh;
   background-color: #f8f9fa;
@@ -95,14 +94,14 @@
     font-size: 1.5rem;
   }
   
-  .section-description {
+  .section-description, .ranking-info {
     margin: 0;
     color: #666;
     font-size: 0.95rem;
   }
 }
 
-// ✅ MINHA DUPLA (mantido igual)
+// ✅ MINHA DUPLA COM ESTATÍSTICAS
 .my-couple-section {
   margin-bottom: 3rem;
 }
@@ -125,6 +124,7 @@
   .couple-stats {
     display: flex;
     gap: 2rem;
+    margin-bottom: 1.5rem;
     
     @media (max-width: 480px) {
       flex-direction: column;
@@ -149,29 +149,71 @@
           color: #ffd700;
         }
         
-        &.points {
+        &.record {
           color: #90ee90;
+        }
+        
+        &.winrate {
+          color: #ffd700;
         }
       }
     }
   }
 }
 
-// ✅ RANKING (mantido igual)
+.detailed-stats {
+  margin-top: 1rem;
+  
+  .stats-row {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    
+    .mini-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      
+      .mini-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #ffd700;
+      }
+      
+      .mini-label {
+        font-size: 0.7rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      &.positive .mini-value {
+        color: #90ee90;
+      }
+      
+      &.negative .mini-value {
+        color: #ffb6c1;
+      }
+    }
+  }
+}
+
+// ✅ CLASSIFICAÇÃO GERAL COM POSIÇÕES
 .ranking-section {
   .ranking-list {
     background: white;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
 
   .ranking-item {
     display: flex;
     align-items: center;
-    padding: 1rem 1.5rem;
+    padding: 1.5rem;
     border-bottom: 1px solid #e9ecef;
-    transition: background-color 0.2s ease;
+    transition: all 0.3s ease;
+    position: relative;
 
     &:last-child {
       border-bottom: none;
@@ -179,65 +221,198 @@
 
     &:hover {
       background-color: #f8f9fa;
+      transform: translateX(5px);
     }
 
+    // ✅ MINHA DUPLA - DESTAQUE ESPECIAL
     &.my-couple {
-      background-color: #e3f2fd;
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
       border-left: 4px solid #007bff;
       
       &:hover {
-        background-color: #bbdefb;
+        background: linear-gradient(135deg, #bbdefb, #90caf9);
       }
     }
 
-    .position-badge {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background-color: #6c757d;
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      margin-right: 1rem;
-      flex-shrink: 0;
-
-      .ranking-item:first-child & {
-        background-color: #ffd700;
-        color: #333;
-      }
-
-      .ranking-item:nth-child(2) & {
-        background-color: #c0c0c0;
-        color: #333;
-      }
-
-      .ranking-item:nth-child(3) & {
-        background-color: #cd7f32;
-        color: white;
-      }
-    }
-
-    .couple-details {
-      flex: 1;
+    // ✅ DUPLAS QUE POSSO DESAFIAR
+    &.challengeable {
+      border-left: 4px solid #28a745;
+      background-color: #f8fff9;
       
-      h4 {
-        margin: 0 0 0.25rem 0;
-        color: #333;
-        font-size: 1.1rem;
-      }
-
-      .points {
-        color: #666;
-        font-size: 0.9rem;
+      &:hover {
+        background-color: #e8f5e8;
       }
     }
 
-    .couple-actions {
-      margin-left: 1rem;
+    // ✅ PÓDIO - PRIMEIROS 3 LUGARES
+    &.podium {
+      background: linear-gradient(135deg, #fff9c4, #fff59d);
+      
+      &:hover {
+        background: linear-gradient(135deg, #fff59d, #fff176);
+      }
     }
   }
+}
+
+// ✅ BADGES DE POSIÇÃO COM CORES
+.position-badge {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-right: 1.5rem;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+
+  // ✅ PRIMEIRO LUGAR - OURO
+  &.first {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #b45309;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+    animation: goldShimmer 2s infinite;
+  }
+
+  // ✅ SEGUNDO LUGAR - PRATA
+  &.second {
+    background: linear-gradient(135deg, #c0c0c0, #e5e7eb);
+    color: #374151;
+    box-shadow: 0 4px 12px rgba(192, 192, 192, 0.4);
+  }
+
+  // ✅ TERCEIRO LUGAR - BRONZE
+  &.third {
+    background: linear-gradient(135deg, #cd7f32, #d97706);
+    color: white;
+    box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
+  }
+
+  // ✅ OUTRAS POSIÇÕES
+  &.regular {
+    background: linear-gradient(135deg, #6b7280, #9ca3af);
+    color: white;
+  }
+
+  // ✅ TOP 3 COM ANIMAÇÃO
+  &.top-3 {
+    animation: pulse 3s infinite;
+  }
+}
+
+@keyframes goldShimmer {
+  0%, 100% { box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4); }
+  50% { box-shadow: 0 6px 16px rgba(255, 215, 0, 0.7); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+// ✅ DETALHES DA DUPLA
+.couple-details {
+  flex: 1;
+  margin-right: 1rem;
+  
+  h4 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  .position-description {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    font-style: italic;
+  }
+}
+
+// ✅ ESTATÍSTICAS NO RANKING
+.ranking-stats {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  
+  .stat-item {
+    white-space: nowrap;
+    
+    strong {
+      color: #007bff;
+    }
+  }
+  
+  .stat-separator {
+    color: #ccc;
+  }
+  
+  .streak-indicator {
+    background: #f0f0f0;
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    
+    &.hot-streak {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      color: white;
+      animation: hotStreak 1.5s infinite;
+    }
+    
+    &.cold-streak {
+      background: linear-gradient(135deg, #2196f3, #1976d2);
+      color: white;
+    }
+  }
+}
+
+@keyframes hotStreak {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+// ✅ AÇÕES DA DUPLA (BOTÕES)
+.couple-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-width: 120px;
+  
+  .cannot-challenge {
+    color: #666;
+    font-size: 0.8rem;
+    text-align: center;
+    font-style: italic;
+    background: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+  }
+  
+  .my-position {
+    color: #007bff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-align: center;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    padding: 0.5rem;
+    border-radius: 6px;
+    animation: myPosition 2s infinite;
+  }
+}
+
+@keyframes myPosition {
+  0%, 100% { background: linear-gradient(135deg, #e3f2fd, #bbdefb); }
+  50% { background: linear-gradient(135deg, #bbdefb, #90caf9); }
 }
 
 // ✅ SEÇÃO DE DESAFIOS
@@ -292,6 +467,21 @@
   }
 }
 
+// ✅ DEBUG ACTIONS (TEMPORÁRIO)
+.debug-actions {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  text-align: center;
+  
+  p {
+    margin: 0 0 0.5rem 0;
+    color: #856404;
+  }
+}
+
 // ✅ RESPONSIVIDADE
 @media (max-width: 768px) {
   .dashboard-main {
@@ -308,15 +498,34 @@
   
   .ranking-item {
     padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
     
     .position-badge {
-      width: 35px;
-      height: 35px;
-      font-size: 0.9rem;
+      width: 40px;
+      height: 40px;
+      font-size: 1rem;
+      margin-right: 0;
+      align-self: flex-start;
     }
     
-    .couple-details h4 {
-      font-size: 1rem;
+    .couple-details {
+      margin-right: 0;
+      width: 100%;
+      
+      h4 {
+        font-size: 1.1rem;
+      }
+    }
+    
+    .couple-actions {
+      width: 100%;
+      align-items: stretch;
+      
+      app-button {
+        width: 100%;
+      }
     }
   }
   
@@ -327,6 +536,12 @@
     .tab-button {
       flex-shrink: 0;
     }
+  }
+  
+  .ranking-stats {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
 }
 
@@ -341,25 +556,6 @@
     justify-content: center;
   }
   
-  .ranking-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-    
-    .position-badge {
-      align-self: flex-start;
-    }
-    
-    .couple-actions {
-      margin-left: 0;
-      width: 100%;
-      
-      app-button {
-        width: 100%;
-      }
-    }
-  }
-  
   .empty-state {
     padding: 2rem 1rem;
     
@@ -370,5 +566,171 @@
     h3 {
       font-size: 1.2rem;
     }
+  }
+  
+  .position-badge {
+    width: 35px;
+    height: 35px;
+    font-size: 0.9rem;
+  }
+  
+  .couple-details h4 {
+    font-size: 1rem;
+  }
+  
+  .couple-stats {
+    gap: 0.5rem;
+  }
+  
+  .detailed-stats .stats-row {
+    gap: 1rem;
+  }
+}
+
+// ✅ ANIMAÇÕES ESPECIAIS
+@keyframes challengeGlow {
+  0% { box-shadow: 0 0 5px rgba(40, 167, 69, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.6); }
+  100% { box-shadow: 0 0 5px rgba(40, 167, 69, 0.3); }
+}
+
+.ranking-item.challengeable {
+  animation: challengeGlow 3s infinite;
+}
+
+// ✅ HOVER EFFECTS PARA INTERATIVIDADE
+.ranking-item {
+  cursor: pointer;
+  
+  &:hover {
+    .position-badge {
+      transform: scale(1.1);
+    }
+    
+    .couple-details h4 {
+      color: #007bff;
+    }
+  }
+}
+
+// ✅ GRADIENTES ESPECIAIS PARA O PÓDIO
+.ranking-item.podium {
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700);
+    animation: shimmer 2s infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+// ✅ ESTILOS PARA DIFERENTES ESTADOS DE STREAK
+.streak-indicator {
+  transition: all 0.3s ease;
+  
+  &.hot-streak {
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  }
+  
+  &.cold-streak {
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+  }
+}
+
+// ✅ INDICADORES VISUAIS PARA DIFERENTES TIPOS DE DUPLA
+.ranking-item {
+  &.newcomer {
+    border-left: 4px solid #9c27b0;
+    
+    &::after {
+      content: '🆕';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.2rem;
+    }
+  }
+  
+  &.veteran {
+    &::after {
+      content: '⭐';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.2rem;
+      color: #ffd700;
+    }
+  }
+}
+
+// ✅ ESTILOS PARA BOTÕES DE AÇÃO
+app-button {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  }
+}
+
+// ✅ MELHORIAS DE ACESSIBILIDADE
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// ✅ TEMA ESCURO (PARA FUTURAS IMPLEMENTAÇÕES)
+@media (prefers-color-scheme: dark) {
+  .player-dashboard {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+  
+  .dashboard-header {
+    background-color: #2d2d2d;
+    border-bottom-color: #404040;
+  }
+  
+  .ranking-list {
+    background: #2d2d2d;
+  }
+  
+  .ranking-item {
+    border-bottom-color: #404040;
+    
+    &:hover {
+      background-color: #3d3d3d;
+    }
+    
+    &.my-couple {
+      background: linear-gradient(135deg, #1e3a8a, #1e40af);
+    }
+    
+    &.challengeable {
+      background-color: #1f2937;
+    }
+  }
+  
+  .couple-details h4 {
+    color: #ffffff;
+  }
+  
+  .position-description,
+  .ranking-stats {
+    color: #9ca3af;
   }
 }

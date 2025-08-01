@@ -34,7 +34,7 @@ import {
   GameResult
 } from '../interfaces/challenge.interfaces';
 
-import { FirebaseService, Couple } from './firebase';
+import { FirebaseService, Couple, CoupleStats } from './firebase';
 
 @Injectable({
   providedIn: 'root'
@@ -130,8 +130,13 @@ export class ChallengeService {
 
       const now = new Date();
       
+      // ✅ ATUALIZAR ESTATÍSTICAS
+      await this.firebaseService.updateChallengeStats(challenge.challengedId, 'received');
+      
       if (accept) {
-        // Aceitar desafio - continua o fluxo normal
+        // ✅ ACEITAR: Atualizar stats
+        await this.firebaseService.updateChallengeStats(challenge.challengedId, 'accepted');
+        
         const datesDeadline = new Date(now.getTime() + (challenge.config.datesTimeHours * 60 * 60 * 1000));
         
         const updates = {
@@ -153,10 +158,11 @@ export class ChallengeService {
         await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
         
       } else {
-        // ✅ RECUSAR - APLICAR TROCA DE POSIÇÕES
+        // ✅ RECUSAR: Atualizar stats + trocar posições
+        await this.firebaseService.updateChallengeStats(challenge.challengedId, 'declined');
+        
         console.log('❌ Desafio recusado - aplicando troca de posições');
         
-        // 1. Marcar desafio como recusado
         const updates = {
           status: ChallengeStatus.DECLINED,
           history: [
@@ -173,10 +179,8 @@ export class ChallengeService {
 
         await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
         
-        // 2. ✅ APLICAR TROCA DE POSIÇÕES
+        // Aplicar troca de posições
         await this.swapRankingPositions(challenge.challengerId, challenge.challengedId);
-        
-        console.log('🔄 Troca de posições aplicada por recusa de desafio');
       }
 
       console.log('✅ Resposta ao desafio processada');
@@ -462,6 +466,21 @@ export class ChallengeService {
         const docSnap = await getDoc(doc(this.firestore, 'couples', coupleId));
         if (docSnap.exists()) {
           const coupleData = docSnap.data();
+          
+          // ✅ CRIAR STATS PADRÃO SE NÃO EXISTIR
+          const defaultStats: CoupleStats = {
+            totalGames: 0,
+            victories: 0,
+            defeats: 0,
+            winRate: 0,
+            challengesSent: 0,
+            challengesReceived: 0,
+            challengesAccepted: 0,
+            challengesDeclined: 0,
+            currentStreak: 0,
+            bestStreak: 0
+          };
+          
           couples.push({
             id: docSnap.id,
             player1Name: coupleData['player1Name'],
@@ -469,7 +488,7 @@ export class ChallengeService {
             responsiblePhone: coupleData['responsiblePhone'],
             createdAt: coupleData['createdAt']?.toDate ? coupleData['createdAt'].toDate() : coupleData['createdAt'],
             position: coupleData['position'] || 0,
-            points: coupleData['points'] || 0
+            stats: coupleData['stats'] || defaultStats // ✅ STATS OBRIGATÓRIO
           });
         }
       }
@@ -522,37 +541,28 @@ export class ChallengeService {
 
   private async validateRankingChallenge(challengerId: string, challengedId: string): Promise<{valid: boolean, reason?: string}> {
     try {
-      // Buscar todas as duplas para calcular ranking
-      const q = query(
-        collection(this.firestore, 'couples'),
-        orderBy('points', 'desc')
-      );
+      // Buscar duplas por posição
+      const challengerDoc = await getDoc(doc(this.firestore, 'couples', challengerId));
+      const challengedDoc = await getDoc(doc(this.firestore, 'couples', challengedId));
       
-      const snapshot = await getDocs(q);
-      const couples = snapshot.docs.map((doc, index) => ({
-        id: doc.id,
-        position: index + 1,
-        ...doc.data()
-      }));
-      
-      const challenger = couples.find(c => c.id === challengerId);
-      const challenged = couples.find(c => c.id === challengedId);
-      
-      if (!challenger || !challenged) {
+      if (!challengerDoc.exists() || !challengedDoc.exists()) {
         return { valid: false, reason: 'Duplas não encontradas no ranking' };
       }
       
-      // Pode desafiar até 2 posições acima
-      const maxChallengePosition = Math.max(1, challenger.position - 2);
+      const challengerPosition = challengerDoc.data()['position'] || 0;
+      const challengedPosition = challengedDoc.data()['position'] || 0;
       
-      if (challenged.position < maxChallengePosition) {
+      // Pode desafiar até 2 posições acima
+      const maxChallengePosition = Math.max(1, challengerPosition - 2);
+      
+      if (challengedPosition < maxChallengePosition) {
         return { 
           valid: false, 
           reason: `Você só pode desafiar duplas até 2 posições acima (posição ${maxChallengePosition} ou abaixo)` 
         };
       }
       
-      if (challenged.position >= challenger.position) {
+      if (challengedPosition >= challengerPosition) {
         return { 
           valid: false, 
           reason: 'Você só pode desafiar duplas que estão acima de você no ranking' 
@@ -571,82 +581,19 @@ export class ChallengeService {
     try {
       console.log('🔄 Iniciando troca de posições:', { challengerId, challengedId });
       
-      // 1. Buscar todas as duplas ordenadas por pontos (ranking atual)
-      const allCouplesQuery = query(
-        collection(this.firestore, 'couples'),
-        orderBy('points', 'desc')
-      );
+      // ✅ ATUALIZAR ESTATÍSTICAS DE DESAFIO
+      await Promise.all([
+        // Desafiante: enviou desafio
+        this.firebaseService.updateChallengeStats(challengerId, 'sent'),
+        // Desafiado: recebeu e recusou
+        this.firebaseService.updateChallengeStats(challengedId, 'received'),
+        this.firebaseService.updateChallengeStats(challengedId, 'declined')
+      ]);
       
-      const snapshot = await getDocs(allCouplesQuery);
-      const couples = snapshot.docs.map((doc, index) => ({
-        id: doc.id,
-        docRef: doc.ref,
-        currentPosition: index + 1,
-        points: doc.data()['points'] || 0,
-        data: doc.data()
-      }));
-      
-      console.log('📊 Ranking atual:', couples.map(c => ({ 
-        id: c.id, 
-        position: c.currentPosition, 
-        points: c.points 
-      })));
-      
-      // 2. Encontrar posições das duplas
-      const challengerIndex = couples.findIndex(c => c.id === challengerId);
-      const challengedIndex = couples.findIndex(c => c.id === challengedId);
-      
-      if (challengerIndex === -1 || challengedIndex === -1) {
-        throw new Error('Duplas não encontradas no ranking');
-      }
-      
-      if (challengerIndex <= challengedIndex) {
-        console.log('⚠️ Desafiante já está em posição melhor ou igual');
-        return;
-      }
-      
-      const challengerPosition = challengerIndex + 1;
-      const challengedPosition = challengedIndex + 1;
-      
-      console.log('🎯 Posições encontradas:', {
-        challenger: { id: challengerId, position: challengerPosition },
-        challenged: { id: challengedId, position: challengedPosition }
-      });
-      
-      // 3. LÓGICA CORRETA: Desafiante assume posição do desafiado
-      // Todos entre o desafiado e o desafiante descem uma posição
-      
-      const challengedPoints = couples[challengedIndex].points;
-      const newChallengerPoints = challengedPoints + 1; // Um ponto a mais que o desafiado
-      
-      // 4. Atualizar pontos do desafiante (ele assume a posição do desafiado)
-      await updateDoc(couples[challengerIndex].docRef, {
-        points: newChallengerPoints
-      });
-      
-      console.log(`📈 Desafiante ${challengerId}: ${couples[challengerIndex].points} → ${newChallengerPoints} pontos`);
-      
-      // 5. Diminuir pontos de todos que estavam entre o desafiado e o desafiante
-      // Eles "descem" uma posição para abrir espaço
-      const updatePromises = [];
-      
-      for (let i = challengedIndex; i < challengerIndex; i++) {
-        const couple = couples[i];
-        const newPoints = Math.max(0, couple.points - 1);
-        
-        updatePromises.push(
-          updateDoc(couple.docRef, { points: newPoints })
-        );
-        
-        console.log(`📉 Dupla ${couple.id}: ${couple.points} → ${newPoints} pontos (desceu uma posição)`);
-      }
-      
-      // 6. Executar todas as atualizações
-      await Promise.all(updatePromises);
+      // Usar o método do FirebaseService
+      await this.firebaseService.swapPositions(challengerId, challengedId);
       
       console.log('✅ Troca de posições concluída!');
-      console.log(`🏆 ${challengerId} assumiu a posição ${challengedPosition}º`);
-      console.log(`📉 ${challengedId} e outros desceram uma posição`);
       
     } catch (error) {
       console.error('❌ Erro ao trocar posições:', error);
@@ -1044,6 +991,8 @@ export class ChallengeService {
   // ✅ MÉTODO: Aplicar mudanças no ranking
   private async applyRankingChanges(winnerId: string, loserId: string): Promise<void> {
     try {
+      console.log('🏆 Aplicando mudanças no ranking:', { winnerId, loserId });
+      
       // Buscar posições atuais
       const winnerDoc = await getDoc(doc(this.firestore, 'couples', winnerId));
       const loserDoc = await getDoc(doc(this.firestore, 'couples', loserId));
@@ -1052,13 +1001,20 @@ export class ChallengeService {
         throw new Error('Duplas não encontradas');
       }
       
-      const winnerPoints = winnerDoc.data()['points'] || 0;
-      const loserPoints = loserDoc.data()['points'] || 0;
+      const winnerPosition = winnerDoc.data()['position'] || 0;
+      const loserPosition = loserDoc.data()['position'] || 0;
       
-      // Se o vencedor tinha menos pontos (posição pior), ele assume a posição do perdedor
-      if (winnerPoints < loserPoints) {
-        console.log('🏆 Vencedor estava abaixo - aplicando troca de posições');
-        await this.swapRankingPositions(winnerId, loserId);
+      // ✅ ATUALIZAR ESTATÍSTICAS DE AMBAS AS DUPLAS
+      const gameDate = new Date();
+      await Promise.all([
+        this.firebaseService.updateCoupleStats(winnerId, true, gameDate),
+        this.firebaseService.updateCoupleStats(loserId, false, gameDate)
+      ]);
+      
+      // Se o vencedor tinha posição pior (número maior), ele assume a posição do perdedor
+      if (winnerPosition > loserPosition) {
+        console.log('🔄 Vencedor estava abaixo - aplicando troca de posições');
+        await this.firebaseService.swapPositions(winnerId, loserId);
       } else {
         console.log('📊 Vencedor já estava acima - ranking mantido');
       }

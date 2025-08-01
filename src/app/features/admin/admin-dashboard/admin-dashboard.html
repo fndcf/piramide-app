@@ -13,7 +13,7 @@
 
   <main class="dashboard-main">
     <div class="content-header">
-      <h2>Duplas Cadastradas</h2>
+      <h2>Ranking de Duplas</h2>
       <app-button variant="primary" (click)="openAddCoupleModal()">
         Adicionar Dupla
       </app-button>
@@ -21,13 +21,42 @@
 
     <div class="couples-list">
       <div class="couples-grid" *ngIf="couples$ | async as couples; else loading">
-        <div class="couple-card" *ngFor="let couple of couples; trackBy: trackByCouple">
+        <div class="couple-card" 
+             *ngFor="let couple of couples; trackBy: trackByCouple; let i = index"
+             [class.podium]="i < 3">
+          
+          <div class="position-badge" [class]="getPositionClass(i)">
+            {{ couple.position }}º
+          </div>
+          
           <div class="couple-info">
             <h3>{{ couple.player1Name }} / {{ couple.player2Name }}</h3>
             <p class="phone">{{ couple.responsiblePhone | phone }}</p>
-            <p class="points">{{ couple.points || 0 }} pontos</p>
+            
+            <!-- ✅ ESTATÍSTICAS AO INVÉS DE PONTOS -->
+            <div class="couple-stats">
+              <div class="stat-item">
+                <span class="stat-value">{{ couple.stats.victories }}-{{ couple.stats.defeats }}</span>
+                <span class="stat-label">V-D</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">{{ couple.stats.winRate }}%</span>
+                <span class="stat-label">Taxa</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">{{ couple.stats.totalGames }}</span>
+                <span class="stat-label">Jogos</span>
+              </div>
+            </div>
           </div>
+          
           <div class="couple-actions">
+            <app-button 
+              variant="outline" 
+              size="small"
+              (click)="viewStats(couple)">
+              📊 Stats
+            </app-button>
             <app-button 
               variant="danger" 
               size="small"
@@ -40,7 +69,7 @@
 
       <ng-template #loading>
         <div class="loading-state">
-          <p>Carregando duplas...</p>
+          <p>Carregando ranking...</p>
         </div>
       </ng-template>
     </div>
@@ -57,5 +86,91 @@
       [isLoading]="isLoading"
       (coupleAdded)="onCoupleAdded($event)">
     </app-add-couple>
+  </app-modal>
+
+  <!-- ✅ NOVO MODAL: Estatísticas Detalhadas -->
+  <app-modal
+    [isOpen]="showStatsModal"
+    [title]="selectedCouple ? selectedCouple.player1Name + ' / ' + selectedCouple.player2Name : 'Estatísticas'"
+    size="medium"
+    (closeModal)="closeStatsModal()">
+
+    <div class="stats-detailed" *ngIf="selectedCouple">
+      <div class="stats-grid">
+        <div class="stat-card games">
+          <div class="stat-icon">🏓</div>
+          <div class="stat-info">
+            <span class="stat-number">{{ selectedCouple.stats.totalGames }}</span>
+            <span class="stat-title">Jogos Disputados</span>
+          </div>
+        </div>
+
+        <div class="stat-card victories">
+          <div class="stat-icon">🏆</div>
+          <div class="stat-info">
+            <span class="stat-number">{{ selectedCouple.stats.victories }}</span>
+            <span class="stat-title">Vitórias</span>
+          </div>
+        </div>
+
+        <div class="stat-card defeats">
+          <div class="stat-icon">🥈</div>
+          <div class="stat-info">
+            <span class="stat-number">{{ selectedCouple.stats.defeats }}</span>
+            <span class="stat-title">Derrotas</span>
+          </div>
+        </div>
+
+        <div class="stat-card winrate">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <span class="stat-number">{{ selectedCouple.stats.winRate }}%</span>
+            <span class="stat-title">Taxa de Vitória</span>
+          </div>
+        </div>
+
+        <div class="stat-card streak">
+          <div class="stat-icon">{{ getStreakIcon(selectedCouple.stats.currentStreak) }}</div>
+          <div class="stat-info">
+            <span class="stat-number">{{ getMathAbs(selectedCouple.stats.currentStreak) }}</span>
+            <span class="stat-title">{{ getStreakText(selectedCouple.stats.currentStreak) }}</span>
+          </div>
+        </div>
+
+        <div class="stat-card best-streak">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-info">
+            <span class="stat-number">{{ selectedCouple.stats.bestStreak }}</span>
+            <span class="stat-title">Melhor Sequência</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="challenges-stats">
+        <h4>📨 Estatísticas de Desafios</h4>
+        <div class="challenges-grid">
+          <div class="challenge-stat">
+            <span class="challenge-number">{{ selectedCouple.stats.challengesSent }}</span>
+            <span class="challenge-label">Enviados</span>
+          </div>
+          <div class="challenge-stat">
+            <span class="challenge-number">{{ selectedCouple.stats.challengesReceived }}</span>
+            <span class="challenge-label">Recebidos</span>
+          </div>
+          <div class="challenge-stat">
+            <span class="challenge-number">{{ selectedCouple.stats.challengesAccepted }}</span>
+            <span class="challenge-label">Aceitos</span>
+          </div>
+          <div class="challenge-stat">
+            <span class="challenge-number">{{ selectedCouple.stats.challengesDeclined }}</span>
+            <span class="challenge-label">Recusados</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="last-game" *ngIf="selectedCouple.stats.lastGameDate">
+        <p><strong>🕐 Último jogo:</strong> {{ formatDate(selectedCouple.stats.lastGameDate) }}</p>
+      </div>
+    </div>
   </app-modal>
 </div>

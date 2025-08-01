@@ -95,3 +95,146 @@
   padding: 3rem;
   color: #666;
 }
+
+.couple-stats {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    .stat-value {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #007bff;
+    }
+    
+    .stat-label {
+      font-size: 0.75rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+}
+
+// ✅ MODAL DE ESTATÍSTICAS
+.stats-detailed {
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stat-card {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: 8px;
+    gap: 1rem;
+    
+    .stat-icon {
+      font-size: 2rem;
+    }
+    
+    .stat-info {
+      display: flex;
+      flex-direction: column;
+      
+      .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+      
+      .stat-title {
+        font-size: 0.8rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+    
+    &.games {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      .stat-number { color: #1976d2; }
+    }
+    
+    &.victories {
+      background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+      .stat-number { color: #388e3c; }
+    }
+    
+    &.defeats {
+      background: linear-gradient(135deg, #ffebee, #ffcdd2);
+      .stat-number { color: #d32f2f; }
+    }
+    
+    &.winrate {
+      background: linear-gradient(135deg, #fff3e0, #ffcc02);
+      .stat-number { color: #f57c00; }
+    }
+    
+    &.streak {
+      background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+      .stat-number { color: #7b1fa2; }
+    }
+    
+    &.best-streak {
+      background: linear-gradient(135deg, #fff8e1, #ffecb3);
+      .stat-number { color: #ff8f00; }
+    }
+  }
+}
+
+.challenges-stats {
+  margin: 2rem 0;
+  
+  h4 {
+    margin: 0 0 1rem 0;
+    color: #333;
+  }
+  
+  .challenges-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    
+    .challenge-stat {
+      text-align: center;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      
+      .challenge-number {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #007bff;
+      }
+      
+      .challenge-label {
+        font-size: 0.8rem;
+        color: #666;
+        text-transform: uppercase;
+      }
+    }
+  }
+}
+
+.last-game {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+  
+  p {
+    margin: 0;
+    color: #666;
+  }
+}

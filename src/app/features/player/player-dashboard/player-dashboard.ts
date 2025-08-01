@@ -79,18 +79,6 @@ export class PlayerDashboardComponent implements OnInit {
     }
   }
 
-  // ✅ MÉTODO PARA FORÇAR VERIFICAÇÃO MANUAL (BOTÃO DE TESTE)
-  async forceCheckGameTime(): Promise<void> {
-    try {
-      console.log('🔄 Forçando verificação de horários...');
-      await this.challengeService.checkGameTimes();
-      alert('✅ Verificação concluída! Verifique os desafios.');
-    } catch (error) {
-      console.error('❌ Erro na verificação:', error);
-      alert('❌ Erro na verificação: ' + error);
-    }
-  }
-
   private loadPlayerData(): void {
     if (this.currentUser?.phone) {
       const userPhone = this.currentUser.phone; // Garantir que não é undefined
@@ -361,18 +349,9 @@ export class PlayerDashboardComponent implements OnInit {
     }
   }
 
+  // ✅ CORRIGIR MÉTODO getPosition (SEM PONTOS)
   getPosition(couples: Couple[], currentCouple: Couple): number {
-    if (!currentCouple) return 0;
-    
-    const sortedCouples = couples
-      .sort((a, b) => (b.points || 0) - (a.points || 0));
-    
-    return sortedCouples.findIndex(c => c.id === currentCouple.id) + 1;
-  }
-
-  canChallenge(myCouple: Couple, targetCouple: Couple, myPosition: number, targetPosition: number): boolean {
-    // Pode desafiar duplas até 2 posições acima
-    return targetPosition >= Math.max(1, myPosition - 2) && targetPosition < myPosition;
+    return currentCouple?.position || 0;
   }
 
   trackByCouple(index: number, couple: Couple): any {
@@ -387,4 +366,79 @@ export class PlayerDashboardComponent implements OnInit {
   selectTab(tab: string): void {
     this.selectedTab = tab;
   }
+
+  getPositionDescription(position: number): string {
+    if (position === 1) return '👑 Campeão - Topo do ranking';
+    if (position === 2) return '🥈 Vice-campeão - Segundo lugar';
+    if (position === 3) return '🥉 Terceiro lugar - Pódio';
+    if (position <= 5) return '⭐ Top 5 - Posição de destaque';
+    if (position <= 10) return '🔥 Top 10 - Boa posição';
+    return `${position}º lugar no ranking`;
+  }
+
+  getPositionBadgeClass(position: number): string {
+    if (position === 1) return 'first top-3';
+    if (position === 2) return 'second top-3';
+    if (position === 3) return 'third top-3';
+    return 'regular';
+  }
+
+  getMathAbs(value: number): number {
+    return Math.abs(value);
+  }
+
+  getStreakLabel(streak: number): string {
+    if (streak > 0) return 'Vitórias';
+    if (streak < 0) return 'Derrotas';
+    return 'Neutro';
+  }
+
+  getStreakDisplay(streak: number): string {
+    if (streak >= 3) return `🔥${streak}`;
+    if (streak <= -3) return `❄️${Math.abs(streak)}`;
+    if (streak > 0) return `↗️${streak}`;
+    if (streak < 0) return `↘️${Math.abs(streak)}`;
+    return '';
+  }
+
+  canChallenge(myCouple: Couple, targetCouple: Couple): boolean {
+    // Verificações básicas
+    if (!myCouple || !targetCouple || myCouple.id === targetCouple.id) {
+      return false;
+    }
+    
+    const myPosition = myCouple.position;
+    const targetPosition = targetCouple.position;
+    
+    // Pode desafiar duplas até 2 posições acima
+    const maxChallengePosition = Math.max(1, myPosition - 2);
+    
+    return targetPosition >= maxChallengePosition && targetPosition < myPosition;
+  }
+
+  getCannotChallengeReason(myCouple: Couple, targetCouple: Couple): string {
+    if (targetCouple.position >= myCouple.position) {
+      return 'Posição inferior à sua';
+    }
+    
+    const maxChallengePosition = Math.max(1, myCouple.position - 2);
+    if (targetCouple.position < maxChallengePosition) {
+      return 'Muito acima (máx. 2 posições)';
+    }
+    
+    return 'Não pode desafiar';
+  }
+
+  // ✅ MÉTODO PARA VERIFICAÇÃO MANUAL DE HORÁRIOS
+  async forceCheckGameTime(): Promise<void> {
+    try {
+      console.log('🔄 Forçando verificação de horários...');
+      await this.challengeService.checkGameTimes();
+      alert('✅ Verificação concluída! Verifique os desafios.');
+    } catch (error) {
+      console.error('❌ Erro na verificação:', error);
+      alert('❌ Erro na verificação: ' + error);
+    }
+  }
+
 }
