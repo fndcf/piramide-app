@@ -1,3 +1,4 @@
+// src/app/features/player/player-dashboard/player-dashboard.scss - ATUALIZADO
 .player-dashboard {
   min-height: 100vh;
   background-color: #f8f9fa;
@@ -21,6 +22,15 @@
     margin: 0;
     color: #333;
     font-size: 1.8rem;
+    &.target-has-active-challenge {
+      .active-challenge-badge {
+        background: linear-gradient(135deg, #ff6b35, #e55100);
+      }
+    }
+  }
+  
+  .active-challenge-badge {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
   }
 }
 
@@ -41,7 +51,91 @@
   padding: 2rem;
 }
 
-// ✅ SISTEMA DE ABAS
+// ✅ ALERTA DE DESAFIO ATIVO
+.active-challenge-alert {
+  background: linear-gradient(135deg, #ff9800, #ff6f00);
+  color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+  animation: challengeAlert 2s infinite;
+  
+  .alert-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .alert-icon {
+    font-size: 2.5rem;
+    opacity: 0.9;
+  }
+  
+  .alert-info {
+    flex: 1;
+    
+    h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+    
+    p {
+      margin: 0.25rem 0;
+      opacity: 0.95;
+      
+      &.alert-status {
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+      }
+    }
+  }
+  
+  .alert-actions {
+    app-button {
+      ::ng-deep .btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.3);
+          border-color: rgba(255, 255, 255, 0.5);
+        }
+      }
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .alert-content {
+      flex-direction: column;
+      text-align: center;
+      gap: 1rem;
+    }
+    
+    .alert-actions {
+      width: 100%;
+      
+      app-button {
+        width: 100%;
+      }
+    }
+  }
+}
+
+@keyframes challengeAlert {
+  0%, 100% { 
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.5);
+    transform: scale(1.02);
+  }
+}
+
+// ✅ SISTEMA DE ABAS COM BADGE
 .dashboard-tabs {
   display: flex;
   margin-bottom: 2rem;
@@ -58,6 +152,7 @@
   cursor: pointer;
   border-bottom: 3px solid transparent;
   transition: all 0.3s ease;
+  position: relative;
   
   &:hover {
     color: #007bff;
@@ -70,9 +165,31 @@
     background-color: #f8f9ff;
   }
   
+  .challenge-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 8px;
+    height: 8px;
+    background: #ff6b35;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  
   @media (max-width: 768px) {
     padding: 0.75rem 1rem;
     font-size: 0.9rem;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.7;
+    transform: scale(1.2);
   }
 }
 
@@ -98,10 +215,19 @@
     margin: 0;
     color: #666;
     font-size: 0.95rem;
+    
+    &.ranking-blocked {
+      color: #d32f2f;
+      font-weight: 500;
+      background: #ffebee;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border-left: 4px solid #d32f2f;
+    }
   }
 }
 
-// ✅ MINHA DUPLA COM ESTATÍSTICAS
+// ✅ MINHA DUPLA COM INDICADOR DE DESAFIO ATIVO
 .my-couple-section {
   margin-bottom: 3rem;
 }
@@ -112,12 +238,40 @@
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+  transition: all 0.3s ease;
+
+  // ✅ ESTILO QUANDO TEM DESAFIO ATIVO
+  &.has-active-challenge {
+    background: linear-gradient(135deg, #ff6b35, #e55100);
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+    animation: activeChallengePulse 3s infinite;
+  }
 
   .couple-info {
     h3 {
       margin: 0 0 1rem 0;
       font-size: 1.5rem;
       font-weight: 600;
+    }
+  }
+
+  .active-challenge-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    border-left: 4px solid rgba(255, 255, 255, 0.5);
+    
+    .indicator-icon {
+      font-size: 1.2rem;
+    }
+    
+    .indicator-text {
+      font-weight: 500;
+      font-size: 0.9rem;
     }
   }
 
@@ -161,6 +315,15 @@
   }
 }
 
+@keyframes activeChallengePulse {
+  0%, 100% { 
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+  }
+  50% { 
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6);
+  }
+}
+
 .detailed-stats {
   margin-top: 1rem;
   
@@ -198,7 +361,7 @@
   }
 }
 
-// ✅ CLASSIFICAÇÃO GERAL COM POSIÇÕES
+// ✅ RANKING COM ESTADOS DE BLOQUEIO
 .ranking-section {
   .ranking-list {
     background: white;
@@ -244,6 +407,40 @@
       }
     }
 
+    // ✅ DUPLAS BLOQUEADAS POR DESAFIO ATIVO (EU TENHO DESAFIO)
+    &.blocked-by-active-challenge {
+      opacity: 0.6;
+      background-color: #f5f5f5;
+      
+      &:hover {
+        background-color: #f5f5f5;
+        transform: none;
+      }
+      
+      .couple-details h4 {
+        color: #999;
+      }
+      
+      .position-badge {
+        opacity: 0.7;
+      }
+    }
+
+    // ✅ DUPLAS QUE TÊM DESAFIO ATIVO (ELAS MESMAS)
+    &.target-has-active-challenge {
+      border-left: 4px solid #ff9800;
+      background-color: #fff8e1;
+      
+      &:hover {
+        background-color: #fff3c4;
+        transform: translateX(3px);
+      }
+      
+      .couple-details h4 {
+        color: #f57c00;
+      }
+    }
+
     // ✅ PÓDIO - PRIMEIROS 3 LUGARES
     &.podium {
       background: linear-gradient(135deg, #fff9c4, #fff59d);
@@ -255,7 +452,7 @@
   }
 }
 
-// ✅ BADGES DE POSIÇÃO COM CORES
+// ✅ BADGES DE POSIÇÃO - MANTIDOS ORIGINAIS
 .position-badge {
   width: 50px;
   height: 50px;
@@ -269,7 +466,6 @@
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 
-  // ✅ PRIMEIRO LUGAR - OURO
   &.first {
     background: linear-gradient(135deg, #ffd700, #ffed4e);
     color: #b45309;
@@ -277,40 +473,27 @@
     animation: goldShimmer 2s infinite;
   }
 
-  // ✅ SEGUNDO LUGAR - PRATA
   &.second {
     background: linear-gradient(135deg, #c0c0c0, #e5e7eb);
     color: #374151;
     box-shadow: 0 4px 12px rgba(192, 192, 192, 0.4);
   }
 
-  // ✅ TERCEIRO LUGAR - BRONZE
   &.third {
     background: linear-gradient(135deg, #cd7f32, #d97706);
     color: white;
     box-shadow: 0 4px 12px rgba(205, 127, 50, 0.4);
   }
 
-  // ✅ OUTRAS POSIÇÕES
   &.regular {
     background: linear-gradient(135deg, #6b7280, #9ca3af);
     color: white;
-  }
-
-  // ✅ TOP 3 COM ANIMAÇÃO
-  &.top-3 {
-    animation: pulse 3s infinite;
   }
 }
 
 @keyframes goldShimmer {
   0%, 100% { box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4); }
   50% { box-shadow: 0 6px 16px rgba(255, 215, 0, 0.7); }
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
 }
 
 // ✅ DETALHES DA DUPLA
@@ -323,6 +506,11 @@
     color: #333;
     font-size: 1.2rem;
     font-weight: 600;
+    transition: color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .position-description {
@@ -330,6 +518,31 @@
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
     font-style: italic;
+  }
+}
+
+// ✅ NOVO: Badge para duplas com desafio ativo
+.active-challenge-badge {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: challengeBadgePulse 2s infinite;
+  white-space: nowrap;
+}
+
+@keyframes challengeBadgePulse {
+  0%, 100% { 
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    transform: scale(1);
+  }
+  50% { 
+    background: linear-gradient(135deg, #ffb74d, #ff8f00);
+    transform: scale(1.05);
   }
 }
 
@@ -380,7 +593,7 @@
   50% { transform: scale(1.1); }
 }
 
-// ✅ AÇÕES DA DUPLA (BOTÕES)
+// ✅ AÇÕES DA DUPLA (BOTÕES) - ATUALIZADO
 .couple-actions {
   display: flex;
   flex-direction: column;
@@ -396,6 +609,23 @@
     background: #f8f9fa;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
+    transition: all 0.3s ease;
+    
+    // ✅ ESTILO ESPECIAL QUANDO BLOQUEADO POR DESAFIO ATIVO (EU)
+    &.active-challenge-blocked {
+      background: #ffebee;
+      color: #d32f2f;
+      border: 1px solid #ffcdd2;
+      font-weight: 500;
+    }
+
+    // ✅ ESTILO ESPECIAL QUANDO DUPLA ALVO TEM DESAFIO ATIVO
+    &.target-active-challenge {
+      background: #fff3e0;
+      color: #ef6c00;
+      border: 1px solid #ffcc02;
+      font-weight: 500;
+    }
   }
   
   .my-position {
@@ -415,10 +645,42 @@
   50% { background: linear-gradient(135deg, #bbdefb, #90caf9); }
 }
 
-// ✅ SEÇÃO DE DESAFIOS
+// ✅ SEÇÃO DE DESAFIOS COM RESUMO ATIVO
 .challenges-section {
   .challenges-list {
     min-height: 200px;
+  }
+  
+  .active-challenge-summary {
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+    border: 2px solid #4caf50;
+    border-radius: 12px;
+    padding: 1rem;
+    margin: 1rem 0;
+    
+    .summary-content {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      
+      .summary-icon {
+        font-size: 1.5rem;
+        color: #2e7d32;
+      }
+      
+      .summary-text {
+        color: #1b5e20;
+        
+        strong {
+          color: #2e7d32;
+        }
+        
+        small {
+          color: #388e3c;
+          font-style: italic;
+        }
+      }
+    }
   }
 }
 
@@ -426,9 +688,28 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  
+  // ✅ DESTAQUE PARA O DESAFIO ATIVO
+  .active-challenge {
+    border: 3px solid #ff6b35;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+    animation: activeChallengeBorder 2s infinite;
+  }
 }
 
-// ✅ ESTADO VAZIO
+@keyframes activeChallengeBorder {
+  0%, 100% { 
+    border-color: #ff6b35;
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+  }
+  50% { 
+    border-color: #ff8a65;
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.5);
+  }
+}
+
+// ✅ ESTADO VAZIO - ATUALIZADO
 .empty-state {
   text-align: center;
   padding: 3rem 2rem;
@@ -482,7 +763,7 @@
   }
 }
 
-// ✅ RESPONSIVIDADE
+// ✅ RESPONSIVIDADE - ATUALIZADA
 @media (max-width: 768px) {
   .dashboard-main {
     padding: 1rem;
@@ -526,6 +807,11 @@
       app-button {
         width: 100%;
       }
+      
+      .cannot-challenge {
+        text-align: center;
+        width: 100%;
+      }
     }
   }
   
@@ -542,6 +828,14 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
+  }
+  
+  .active-challenge-summary {
+    .summary-content {
+      flex-direction: column;
+      text-align: center;
+      gap: 0.5rem;
+    }
   }
 }
 
@@ -585,6 +879,14 @@
   .detailed-stats .stats-row {
     gap: 1rem;
   }
+  
+  .active-challenge-alert {
+    padding: 1rem;
+    
+    .alert-icon {
+      font-size: 2rem;
+    }
+  }
 }
 
 // ✅ ANIMAÇÕES ESPECIAIS
@@ -594,12 +896,12 @@
   100% { box-shadow: 0 0 5px rgba(40, 167, 69, 0.3); }
 }
 
-.ranking-item.challengeable {
+.ranking-item.challengeable:not(.blocked-by-active-challenge) {
   animation: challengeGlow 3s infinite;
 }
 
 // ✅ HOVER EFFECTS PARA INTERATIVIDADE
-.ranking-item {
+.ranking-item:not(.blocked-by-active-challenge) {
   cursor: pointer;
   
   &:hover {
@@ -610,86 +912,6 @@
     .couple-details h4 {
       color: #007bff;
     }
-  }
-}
-
-// ✅ GRADIENTES ESPECIAIS PARA O PÓDIO
-.ranking-item.podium {
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #ffd700, #ffed4e, #ffd700);
-    animation: shimmer 2s infinite;
-  }
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-
-// ✅ ESTILOS PARA DIFERENTES ESTADOS DE STREAK
-.streak-indicator {
-  transition: all 0.3s ease;
-  
-  &.hot-streak {
-    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
-  }
-  
-  &.cold-streak {
-    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
-  }
-}
-
-// ✅ INDICADORES VISUAIS PARA DIFERENTES TIPOS DE DUPLA
-.ranking-item {
-  &.newcomer {
-    border-left: 4px solid #9c27b0;
-    
-    &::after {
-      content: '🆕';
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 1.2rem;
-    }
-  }
-  
-  &.veteran {
-    &::after {
-      content: '⭐';
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 1.2rem;
-      color: #ffd700;
-    }
-  }
-}
-
-// ✅ ESTILOS PARA BOTÕES DE AÇÃO
-app-button {
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-  }
-}
-
-// ✅ MELHORIAS DE ACESSIBILIDADE
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }
 
@@ -712,7 +934,7 @@ app-button {
   .ranking-item {
     border-bottom-color: #404040;
     
-    &:hover {
+    &:hover:not(.blocked-by-active-challenge) {
       background-color: #3d3d3d;
     }
     
@@ -723,6 +945,11 @@ app-button {
     &.challengeable {
       background-color: #1f2937;
     }
+    
+    &.blocked-by-active-challenge,
+    &.target-has-active-challenge {
+      background-color: #2a2a2a;
+    }
   }
   
   .couple-details h4 {
@@ -732,5 +959,14 @@ app-button {
   .position-description,
   .ranking-stats {
     color: #9ca3af;
+  }
+  
+  .active-challenge-alert {
+    background: linear-gradient(135deg, #d84315, #bf360c);
+  }
+  
+  .active-challenge-summary {
+    background: linear-gradient(135deg, #2e7d32, #388e3c);
+    border-color: #4caf50;
   }
 }

@@ -12,6 +12,31 @@
   </header>
 
   <main class="dashboard-main">
+    <!-- ✅ ALERTA DE DESAFIO ATIVO -->
+    <div class="active-challenge-alert" *ngIf="hasActiveChallenge">
+      <div class="alert-content">
+        <div class="alert-icon">⚔️</div>
+        <div class="alert-info">
+          <h3>Você tem um desafio ativo!</h3>
+          <p>
+            <strong>{{ activeChallengeInfo.challengeType === 'as_challenger' ? 'Você desafiou' : 'Você foi desafiado por' }}:</strong>
+            {{ activeChallengeInfo.opponentName }}
+          </p>
+          <p class="alert-status">
+            <strong>Status:</strong> {{ getStatusDescription(activeChallengeInfo.challengeStatus) }}
+          </p>
+        </div>
+        <div class="alert-actions">
+          <app-button 
+            variant="primary" 
+            size="small"
+            (click)="goToActiveChallenge()">
+            Ver Desafio
+          </app-button>
+        </div>
+      </div>
+    </div>
+
     <!-- ✅ NAVEGAÇÃO POR ABAS -->
     <div class="dashboard-tabs">
       <button 
@@ -25,6 +50,7 @@
         [class.active]="selectedTab === 'challenges'"
         (click)="selectTab('challenges')">
         ⚔️ Desafios
+        <span class="challenge-badge" *ngIf="hasActiveChallenge">●</span>
       </button>
     </div>
 
@@ -36,9 +62,15 @@
           <h2>Minha Dupla</h2>
         </div>
         
-        <div class="my-couple-card">
+        <div class="my-couple-card" [class.has-active-challenge]="hasActiveChallenge">
           <div class="couple-info">
             <h3>{{ myCouple.player1Name }} / {{ myCouple.player2Name }}</h3>
+            
+            <!-- ✅ INDICADOR DE DESAFIO ATIVO -->
+            <div class="active-challenge-indicator" *ngIf="hasActiveChallenge">
+              <span class="indicator-icon">⚔️</span>
+              <span class="indicator-text">Desafio ativo em andamento</span>
+            </div>
             
             <!-- ✅ ESTATÍSTICAS PRINCIPAIS -->
             <div class="couple-stats">
@@ -82,7 +114,12 @@
       <section class="ranking-section">
         <div class="section-header">
           <h2>Ranking Geral</h2>
-          <p class="ranking-info">Você pode desafiar duplas até 2 posições acima da sua</p>
+          <p class="ranking-info">
+            <span *ngIf="!hasActiveChallenge">Você pode desafiar duplas até 2 posições acima da sua</span>
+            <span *ngIf="hasActiveChallenge" class="ranking-blocked">
+              ⚠️ Finalize seu desafio ativo antes de criar um novo desafio
+            </span>
+          </p>
         </div>
 
         <div class="ranking-list" *ngIf="allCouples$ | async as allCouples; else loading">
@@ -90,6 +127,8 @@
                *ngFor="let couple of allCouples; let i = index; trackBy: trackByCouple"
                [class.my-couple]="(myCouple$ | async) && couple.id === (myCouple$ | async)?.id"
                [class.challengeable]="(myCouple$ | async) && canChallenge((myCouple$ | async)!, couple)"
+               [class.blocked-by-active-challenge]="hasActiveChallenge && couple.id !== (myCouple$ | async)?.id"
+               [class.target-has-active-challenge]="targetHasActiveChallenge(couple.id!)"
                [class.podium]="i < 3">
             
             <!-- ✅ BADGE DE POSIÇÃO COM CORES -->
@@ -99,7 +138,13 @@
             
             <!-- ✅ DETALHES DA DUPLA COM ESTATÍSTICAS -->
             <div class="couple-details">
-              <h4>{{ couple.player1Name }} / {{ couple.player2Name }}</h4>
+              <h4>
+                {{ couple.player1Name }} / {{ couple.player2Name }}
+                <!-- ✅ NOVO: Indicador de desafio ativo -->
+                <span class="active-challenge-badge" *ngIf="targetHasActiveChallenge(couple.id!)">
+                  ⚔️ Em desafio
+                </span>
+              </h4>
               <div class="position-description">{{ getPositionDescription(couple.position) }}</div>
               
               <!-- ✅ ESTATÍSTICAS NO RANKING -->
@@ -121,19 +166,21 @@
 
             <!-- ✅ AÇÕES DA DUPLA (BOTÕES DE DESAFIO) -->
             <div class="couple-actions" *ngIf="myCouple$ | async as myCouple">
-              <!-- ✅ BOTÃO DESAFIAR -->
+              <!-- ✅ BOTÃO DESAFIAR (DESABILITADO SE TEM DESAFIO ATIVO) -->
               <app-button 
                 *ngIf="canChallenge(myCouple, couple)"
                 variant="primary" 
                 size="small"
                 [loading]="isLoading"
+                [disabled]="hasActiveChallenge"
                 (click)="challengeCouple(couple)">
                 ⚔️ Desafiar
               </app-button>
               
               <!-- ✅ MOTIVO POR QUE NÃO PODE DESAFIAR -->
               <span *ngIf="!canChallenge(myCouple, couple) && couple.id !== myCouple.id" 
-                    class="cannot-challenge">
+                    class="cannot-challenge"
+                    [class.active-challenge-blocked]="hasActiveChallenge">
                 {{ getCannotChallengeReason(myCouple, couple) }}
               </span>
               
@@ -162,6 +209,20 @@
             Acompanhe seus desafios enviados e recebidos
           </p>
           
+          <!-- ✅ STATUS DO DESAFIO ATIVO -->
+          <div class="active-challenge-summary" *ngIf="hasActiveChallenge">
+            <div class="summary-content">
+              <span class="summary-icon">⚔️</span>
+              <div class="summary-text">
+                <strong>Desafio Ativo:</strong>
+                {{ activeChallengeInfo.challengeType === 'as_challenger' ? 'Você desafiou' : 'Você foi desafiado por' }}
+                {{ activeChallengeInfo.opponentName }}
+                <br>
+                <small>{{ getStatusDescription(activeChallengeInfo.challengeStatus) }}</small>
+              </div>
+            </div>
+          </div>
+          
           <!-- ✅ BOTÃO TEMPORÁRIO PARA TESTAR HORÁRIOS -->
           <div class="debug-actions" style="margin: 1rem 0; padding: 1rem; background: #fff3cd; border-radius: 8px;">
             <p><strong>🧪 Teste:</strong> Use este botão se o resultado não apareceu na hora:</p>
@@ -179,9 +240,11 @@
           <div class="challenges-container" *ngIf="challenges.length > 0; else noChallenges">
             <app-challenge
               *ngFor="let challenge of challenges; trackBy: trackByChallenge"
+              [id]="'challenge-' + challenge.id"
               [challenge]="challenge"
               [currentCoupleId]="(myCouple$ | async)?.id || ''"
               [isLoading]="isLoading"
+              [class.active-challenge]="hasActiveChallenge && challenge.id === activeChallengeInfo.challengeId"
               (respondToChallenge)="onRespondToChallenge($event)"
               (proposeDates)="onProposeDates($event)"
               (selectDate)="onSelectDate($event)"
@@ -199,9 +262,12 @@
               <h3>Nenhum desafio ainda</h3>
               <p>
                 Você ainda não tem desafios enviados ou recebidos.
-                <br>Vá para o ranking e desafie outras duplas!
+                <br>
+                <span *ngIf="!hasActiveChallenge">Vá para o ranking e desafie outras duplas!</span>
+                <span *ngIf="hasActiveChallenge">Você só pode ter um desafio ativo por vez.</span>
               </p>
               <app-button 
+                *ngIf="!hasActiveChallenge"
                 variant="primary"
                 (click)="selectTab('ranking')">
                 Ver Ranking

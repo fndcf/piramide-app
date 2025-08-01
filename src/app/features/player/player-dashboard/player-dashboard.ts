@@ -18,7 +18,7 @@ import { AuthService, User } from '../../../core/services/auth';
     CommonModule,
     AsyncPipe,
     ButtonComponent,
-    ChallengeComponent, // ✅ Novo componente
+    ChallengeComponent,
     PhonePipe
   ],
   templateUrl: './player-dashboard.html',
@@ -28,15 +28,27 @@ export class PlayerDashboardComponent implements OnInit {
   currentUser: User | null = null;
   myCouple$!: Observable<Couple | null>;
   allCouples$!: Observable<Couple[]>;
-  challenges$!: Observable<Challenge[]>; // ✅ Desafios
+  challenges$!: Observable<Challenge[]>;
   
   isLoading = false;
   selectedTab = 'ranking'; // 'ranking' | 'challenges'
 
+  // ✅ NOVOS CAMPOS PARA CONTROLE DE DESAFIO ATIVO
+  hasActiveChallenge = false;
+  activeChallengeInfo: {
+    challengeType?: 'as_challenger' | 'as_challenged';
+    challengeStatus?: string;
+    opponentName?: string;
+    challengeId?: string;
+  } = {};
+
+  // ✅ NOVO CAMPO: Controle de duplas com desafios ativos
+  couplesWithActiveChallenges = new Set<string>();
+
   constructor(
     private authService: AuthService,
     private firebaseService: FirebaseService,
-    private challengeService: ChallengeService // ✅ Novo serviço
+    private challengeService: ChallengeService
   ) {}
 
   private gameTimeInterval?: any;
@@ -81,17 +93,69 @@ export class PlayerDashboardComponent implements OnInit {
 
   private loadPlayerData(): void {
     if (this.currentUser?.phone) {
-      const userPhone = this.currentUser.phone; // Garantir que não é undefined
+      const userPhone = this.currentUser.phone;
       this.myCouple$ = this.firebaseService.getCoupleByPhone(userPhone);
       
-      // ✅ Carregar desafios quando soubermos o ID da dupla
-      this.myCouple$.subscribe(couple => {
+      // ✅ CARREGAR DESAFIOS E VERIFICAR DESAFIO ATIVO
+      this.myCouple$.subscribe(async couple => {
         if (couple?.id) {
           this.challenges$ = this.challengeService.getChallengesForCouple(couple.id);
+          
+          // ✅ VERIFICAR SE TEM DESAFIO ATIVO
+          await this.checkActiveChallenge(couple.id);
+          
+          // ✅ NOVO: Carregar duplas com desafios ativos
+          await this.loadCouplesWithActiveChallenges();
         }
       });
     }
     this.allCouples$ = this.firebaseService.getCouples();
+  }
+
+  // ✅ NOVO MÉTODO: Carregar duplas que têm desafios ativos
+  private async loadCouplesWithActiveChallenges(): Promise<void> {
+    try {
+      console.log('🔍 Carregando duplas com desafios ativos...');
+      
+      const activeCouplesSet = await this.challengeService.getAllCouplesWithActiveChallenges();
+      this.couplesWithActiveChallenges = activeCouplesSet;
+      
+      console.log('📋 Duplas com desafios ativos:', Array.from(activeCouplesSet));
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar duplas com desafios ativos:', error);
+      this.couplesWithActiveChallenges = new Set();
+    }
+  }
+
+  // ✅ NOVO MÉTODO: Verificar se a dupla alvo tem desafio ativo
+  targetHasActiveChallenge(targetCoupleId: string): boolean {
+    return this.couplesWithActiveChallenges.has(targetCoupleId);
+  }
+  private async checkActiveChallenge(coupleId: string): Promise<void> {
+    try {
+      const status = await this.challengeService.getCouplechallengeStatus(coupleId);
+      
+      this.hasActiveChallenge = status.hasActiveChallenge;
+      
+      if (status.hasActiveChallenge) {
+        this.activeChallengeInfo = {
+          challengeType: status.challengeType,
+          challengeStatus: status.challengeStatus,
+          opponentName: status.opponentName,
+          challengeId: status.challengeId
+        };
+        
+        console.log('⚠️ Dupla tem desafio ativo:', this.activeChallengeInfo);
+      } else {
+        this.activeChallengeInfo = {};
+        console.log('✅ Dupla livre para novos desafios');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar desafio ativo:', error);
+      this.hasActiveChallenge = false;
+    }
   }
 
   async logout(): Promise<void> {
@@ -102,21 +166,25 @@ export class PlayerDashboardComponent implements OnInit {
     }
   }
 
-  // ✅ NOVA FUNCIONALIDADE - DESAFIAR DUPLA (VERSÃO DEBUG)
+  // ✅ DESAFIAR DUPLA - ATUALIZADO COM VERIFICAÇÃO
   async challengeCouple(targetCouple: Couple): Promise<void> {
     if (!this.currentUser?.phone) {
       console.log('❌ Usuário não tem telefone');
       return;
     }
 
-    const userPhone = this.currentUser.phone; // Garantir que não é undefined
+    // ✅ VERIFICAÇÃO: Se já tem desafio ativo, não permitir
+    if (this.hasActiveChallenge) {
+      const message = this.getActiveChallengeMessage();
+      alert(`❌ ${message}\n\nFinalize seu desafio atual antes de criar um novo.`);
+      return;
+    }
+
+    const userPhone = this.currentUser.phone;
     console.log('🎯 Iniciando desafio para:', targetCouple);
 
     try {
       this.isLoading = true;
-      
-      // Buscar dados da minha dupla de forma síncrona
-      console.log('📞 Buscando minha dupla com telefone:', userPhone);
       
       const myCouple = await this.getCurrentCouple();
       console.log('👥 Minha dupla encontrada:', myCouple);
@@ -132,12 +200,15 @@ export class PlayerDashboardComponent implements OnInit {
         challengedName: `${targetCouple.player1Name} / ${targetCouple.player2Name}`
       });
 
-      // Tentar criar o desafio
       console.log('⚔️ Chamando challengeService.createChallenge...');
       const challengeId = await this.challengeService.createChallenge(myCouple.id, targetCouple.id);
       
       console.log('✅ Desafio criado com ID:', challengeId);
       alert(`✅ Desafio enviado com sucesso para ${targetCouple.player1Name} / ${targetCouple.player2Name}!`);
+      
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS CRIAR DESAFIO
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
       
     } catch (error: any) {
       console.error('❌ Erro detalhado ao enviar desafio:', error);
@@ -146,6 +217,34 @@ export class PlayerDashboardComponent implements OnInit {
     } finally {
       console.log('🏁 Finalizando - removendo loading');
       this.isLoading = false;
+    }
+  }
+
+  // ✅ NOVO MÉTODO: Obter mensagem do desafio ativo (PUBLIC para template)
+  getActiveChallengeMessage(): string {
+    const info = this.activeChallengeInfo;
+    
+    if (info.challengeType === 'as_challenger') {
+      return `Você já desafiou ${info.opponentName}. Status: ${this.getStatusDescription(info.challengeStatus)}`;
+    } else if (info.challengeType === 'as_challenged') {
+      return `Você foi desafiado por ${info.opponentName}. Status: ${this.getStatusDescription(info.challengeStatus)}`;
+    }
+    
+    return 'Você já tem um desafio ativo';
+  }
+
+  // ✅ NOVO MÉTODO: Descrição amigável do status (PUBLIC para template)
+  getStatusDescription(status?: string): string {
+    switch (status) {
+      case 'pending_response': return 'Aguardando resposta';
+      case 'pending_dates': return 'Aguardando propostas de datas';
+      case 'pending_date_selection': return 'Aguardando seleção de data';
+      case 'pending_counter_response': return 'Aguardando resposta à contraproposta';
+      case 'scheduled': return 'Jogo agendado';
+      case 'game_time': return 'Jogo pode ser realizado';
+      case 'pending_result': return 'Aguardando resultado';
+      case 'pending_confirmation': return 'Aguardando confirmação do resultado';
+      default: return 'Em andamento';
     }
   }
 
@@ -160,6 +259,10 @@ export class PlayerDashboardComponent implements OnInit {
       if (!myCouple?.id) throw new Error('Dupla não encontrada');
 
       await this.challengeService.respondToChallenge(event.challengeId, myCouple.id, event.accept);
+      
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS RESPONDER
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
       
     } catch (error: any) {
       console.error('❌ Erro ao responder desafio:', error);
@@ -180,6 +283,10 @@ export class PlayerDashboardComponent implements OnInit {
 
       await this.challengeService.proposeDates(event.challengeId, myCouple.id, event.dates);
       
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS PROPOR DATAS
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
+      
     } catch (error: any) {
       console.error('❌ Erro ao propor datas:', error);
       alert(error.message || 'Erro ao propor datas');
@@ -198,6 +305,10 @@ export class PlayerDashboardComponent implements OnInit {
       if (!myCouple?.id) throw new Error('Dupla não encontrada');
 
       await this.challengeService.selectDate(event.challengeId, myCouple.id, event.dateId);
+      
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS SELECIONAR DATA
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
       
     } catch (error: any) {
       console.error('❌ Erro ao selecionar data:', error);
@@ -218,6 +329,10 @@ export class PlayerDashboardComponent implements OnInit {
 
       await this.challengeService.makeCounterProposal(event.challengeId, myCouple.id, event.date);
       
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS CONTRAPROPOSTA
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
+      
     } catch (error: any) {
       console.error('❌ Erro ao fazer contraproposta:', error);
       alert(error.message || 'Erro ao fazer contraproposta');
@@ -237,6 +352,10 @@ export class PlayerDashboardComponent implements OnInit {
 
       await this.challengeService.respondToCounterProposal(event.challengeId, myCouple.id, event.accept);
       
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS RESPONDER CONTRAPROPOSTA
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
+      
     } catch (error: any) {
       console.error('❌ Erro ao responder contraproposta:', error);
       alert(error.message || 'Erro ao responder contraproposta');
@@ -254,7 +373,6 @@ export class PlayerDashboardComponent implements OnInit {
       const myCouple = await this.getCurrentCouple();
       if (!myCouple?.id) throw new Error('Dupla não encontrada');
 
-      // ✅ LIMPAR CAMPOS VAZIOS ANTES DE ENVIAR
       const score = event.score && event.score.trim() !== '' ? event.score.trim() : undefined;
       const notes = event.notes && event.notes.trim() !== '' ? event.notes.trim() : undefined;
 
@@ -275,6 +393,10 @@ export class PlayerDashboardComponent implements OnInit {
       );
       
       alert('✅ Resultado lançado! Aguardando confirmação da outra dupla.');
+      
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS LANÇAR RESULTADO
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
       
     } catch (error: any) {
       console.error('❌ Erro ao lançar resultado:', error);
@@ -301,6 +423,10 @@ export class PlayerDashboardComponent implements OnInit {
         alert('⚠️ Resultado contestado. Um administrador irá resolver a situação.');
       }
       
+      // ✅ RECARREGAR STATUS E DUPLAS ATIVAS APÓS CONFIRMAR RESULTADO
+      await this.checkActiveChallenge(myCouple.id);
+      await this.loadCouplesWithActiveChallenges();
+      
     } catch (error: any) {
       console.error('❌ Erro ao confirmar resultado:', error);
       alert(error.message || 'Erro ao confirmar resultado');
@@ -316,7 +442,7 @@ export class PlayerDashboardComponent implements OnInit {
       return null;
     }
     
-    const phone = this.currentUser.phone; // Garantir que não é undefined
+    const phone = this.currentUser.phone;
     
     try {
       console.log('🔍 Buscando dupla por telefone:', phone);
@@ -349,7 +475,6 @@ export class PlayerDashboardComponent implements OnInit {
     }
   }
 
-  // ✅ CORRIGIR MÉTODO getPosition (SEM PONTOS)
   getPosition(couples: Couple[], currentCouple: Couple): number {
     return currentCouple?.position || 0;
   }
@@ -401,7 +526,18 @@ export class PlayerDashboardComponent implements OnInit {
     return '';
   }
 
+  // ✅ ATUALIZADO: Verificar se pode desafiar (incluindo dupla alvo com desafio ativo)
   canChallenge(myCouple: Couple, targetCouple: Couple): boolean {
+    // ✅ NOVA VERIFICAÇÃO: Se EU tenho desafio ativo, não pode desafiar
+    if (this.hasActiveChallenge) {
+      return false;
+    }
+
+    // ✅ NOVA VERIFICAÇÃO: Se a DUPLA ALVO tem desafio ativo, não pode desafiar
+    if (this.targetHasActiveChallenge(targetCouple.id!)) {
+      return false;
+    }
+
     // Verificações básicas
     if (!myCouple || !targetCouple || myCouple.id === targetCouple.id) {
       return false;
@@ -416,7 +552,18 @@ export class PlayerDashboardComponent implements OnInit {
     return targetPosition >= maxChallengePosition && targetPosition < myPosition;
   }
 
+  // ✅ ATUALIZADO: Motivo por que não pode desafiar (incluindo dupla alvo com desafio ativo)
   getCannotChallengeReason(myCouple: Couple, targetCouple: Couple): string {
+    // ✅ NOVA VERIFICAÇÃO: Se EU tenho desafio ativo
+    if (this.hasActiveChallenge) {
+      return this.getActiveChallengeShortMessage();
+    }
+
+    // ✅ NOVA VERIFICAÇÃO: Se a DUPLA ALVO tem desafio ativo
+    if (this.targetHasActiveChallenge(targetCouple.id!)) {
+      return 'Dupla já tem desafio ativo';
+    }
+
     if (targetCouple.position >= myCouple.position) {
       return 'Posição inferior à sua';
     }
@@ -427,6 +574,19 @@ export class PlayerDashboardComponent implements OnInit {
     }
     
     return 'Não pode desafiar';
+  }
+
+  // ✅ NOVO MÉTODO: Mensagem curta do desafio ativo (PUBLIC para template)
+  getActiveChallengeShortMessage(): string {
+    const info = this.activeChallengeInfo;
+    
+    if (info.challengeType === 'as_challenger') {
+      return `Você já desafiou ${info.opponentName?.split(' / ')[0] || 'outra dupla'}`;
+    } else if (info.challengeType === 'as_challenged') {
+      return `Você foi desafiado por ${info.opponentName?.split(' / ')[0] || 'outra dupla'}`;
+    }
+    
+    return 'Desafio ativo';
   }
 
   // ✅ MÉTODO PARA VERIFICAÇÃO MANUAL DE HORÁRIOS
@@ -441,4 +601,17 @@ export class PlayerDashboardComponent implements OnInit {
     }
   }
 
+  // ✅ NOVO MÉTODO: Ir direto para o desafio ativo
+  goToActiveChallenge(): void {
+    if (this.hasActiveChallenge && this.activeChallengeInfo.challengeId) {
+      this.selectTab('challenges');
+      // Opcional: scroll para o desafio específico
+      setTimeout(() => {
+        const element = document.getElementById(`challenge-${this.activeChallengeInfo.challengeId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }
 }

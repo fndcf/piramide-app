@@ -1,4 +1,4 @@
-// src/app/core/services/challenge.service.ts
+// src/app/core/services/challenge.service.ts - ATUALIZADO COM REGRA DE UM DESAFIO ATIVO
 import { Injectable, inject } from '@angular/core';
 import { Observable, combineLatest } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
@@ -46,6 +46,18 @@ export class ChallengeService {
   private challengesCollection = 'challenges';
   private configCollection = 'system_config';
   
+  // ✅ ESTADOS QUE CONSIDERAR COMO "DESAFIO ATIVO"
+  private readonly ACTIVE_CHALLENGE_STATUSES = [
+    ChallengeStatus.PENDING_RESPONSE,
+    ChallengeStatus.PENDING_DATES,
+    ChallengeStatus.PENDING_DATE_SELECTION,
+    ChallengeStatus.PENDING_COUNTER_RESPONSE,
+    ChallengeStatus.SCHEDULED,
+    ChallengeStatus.GAME_TIME,
+    ChallengeStatus.PENDING_RESULT,
+    ChallengeStatus.PENDING_CONFIRMATION
+  ];
+  
   // Configuração padrão
   private defaultConfig: ChallengeConfig = {
     responseTimeHours: 24,
@@ -55,15 +67,21 @@ export class ChallengeService {
     minProposedDates: 3
   };
 
-  // ✅ CRIAR DESAFIO
+  // ✅ CRIAR DESAFIO COM VERIFICAÇÃO DE DESAFIO ATIVO
   async createChallenge(challengerId: string, challengedId: string): Promise<string> {
     try {
       console.log('🎯 Iniciando criação de desafio:', { challengerId, challengedId });
 
-      // Verificar se pode desafiar
+      // ✅ NOVA VERIFICAÇÃO: Dupla pode desafiar?
       const canChallenge = await this.canChallengeCouple(challengerId, challengedId);
       if (!canChallenge.canChallenge) {
         throw new Error(canChallenge.reason);
+      }
+
+      // ✅ NOVA VERIFICAÇÃO: Verificar se alguma das duplas já tem desafio ativo
+      const activeCheck = await this.checkActiveChallenges(challengerId, challengedId);
+      if (!activeCheck.canProceed) {
+        throw new Error(activeCheck.reason);
       }
 
       // Buscar dados das duplas
@@ -114,7 +132,204 @@ export class ChallengeService {
     }
   }
 
-  // ✅ RESPONDER DESAFIO (Aceitar/Recusar)
+  // ✅ NOVO MÉTODO: Verificar se as duplas podem participar de um novo desafio
+  private async checkActiveChallenges(challengerId: string, challengedId: string): Promise<{canProceed: boolean, reason?: string}> {
+    try {
+      console.log('🔍 Verificando desafios ativos das duplas:', { challengerId, challengedId });
+      
+      // Buscar desafios ativos onde alguma das duplas está envolvida
+      const activeChallengesQuery = query(
+        collection(this.firestore, this.challengesCollection),
+        where('status', 'in', this.ACTIVE_CHALLENGE_STATUSES)
+      );
+      
+      const snapshot = await getDocs(activeChallengesQuery);
+      
+      // ✅ CORREÇÃO: Converter corretamente os dados e tipar como Challenge[]
+      const activeChallenges: Challenge[] = snapshot.docs.map(doc => {
+        const data = this.convertTimestampsToDates(doc.data());
+        return { id: doc.id, ...data } as Challenge;
+      });
+      
+      console.log(`📋 Encontrados ${activeChallenges.length} desafios ativos no sistema`);
+      
+      // Verificar se o desafiante já tem desafio ativo
+      const challengerActiveChallenges = activeChallenges.filter((challenge: Challenge) => 
+        challenge.challengerId === challengerId || challenge.challengedId === challengerId
+      );
+      
+      if (challengerActiveChallenges.length > 0) {
+        const activeChallenge = challengerActiveChallenges[0];
+        const otherCoupleName = activeChallenge.challengerId === challengerId ? 
+          activeChallenge.challengedName : activeChallenge.challengerName;
+        
+        console.log('❌ Desafiante já tem desafio ativo:', activeChallenge);
+        
+        return {
+          canProceed: false,
+          reason: `Sua dupla já tem um desafio ativo contra ${otherCoupleName}. Finalize-o antes de criar um novo desafio.`
+        };
+      }
+      
+      // Verificar se o desafiado já tem desafio ativo
+      const challengedActiveChallenges = activeChallenges.filter((challenge: Challenge) => 
+        challenge.challengerId === challengedId || challenge.challengedId === challengedId
+      );
+      
+      if (challengedActiveChallenges.length > 0) {
+        const activeChallenge = challengedActiveChallenges[0];
+        const otherCoupleName = activeChallenge.challengerId === challengedId ? 
+          activeChallenge.challengedName : activeChallenge.challengerName;
+        
+        console.log('❌ Desafiado já tem desafio ativo:', activeChallenge);
+        
+        // Buscar dados da dupla desafiada para mostrar nome correto
+        const challengedData = await this.getCouplesData([challengedId]);
+        const challengedCouple = challengedData[0];
+        const challengedName = challengedCouple ? 
+          `${challengedCouple.player1Name} / ${challengedCouple.player2Name}` : 
+          'Esta dupla';
+        
+        return {
+          canProceed: false,
+          reason: `${challengedName} já tem um desafio ativo contra ${otherCoupleName}. Aguarde a conclusão do desafio atual.`
+        };
+      }
+      
+      console.log('✅ Ambas as duplas podem participar de um novo desafio');
+      return { canProceed: true };
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar desafios ativos:', error);
+      // Em caso de erro, permitir o desafio para não bloquear desnecessariamente
+      return { canProceed: true };
+    }
+  }
+
+  // ✅ NOVO MÉTODO: Verificar se uma dupla tem desafio ativo
+  async hasActiveChallenge(coupleId: string): Promise<{hasActive: boolean, challenge?: Challenge}> {
+    try {
+      const activeChallengesQuery = query(
+        collection(this.firestore, this.challengesCollection),
+        where('status', 'in', this.ACTIVE_CHALLENGE_STATUSES)
+      );
+      
+      const snapshot = await getDocs(activeChallengesQuery);
+      
+      // ✅ CORREÇÃO: Converter corretamente os dados e tipar como Challenge[]
+      const activeChallenges: Challenge[] = snapshot.docs.map(doc => {
+        const data = this.convertTimestampsToDates(doc.data());
+        return { id: doc.id, ...data } as Challenge;
+      });
+      
+      const coupleActiveChallenge = activeChallenges.find((challenge: Challenge) => 
+        challenge.challengerId === coupleId || challenge.challengedId === coupleId
+      );
+      
+      return {
+        hasActive: !!coupleActiveChallenge,
+        challenge: coupleActiveChallenge
+      };
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar desafio ativo da dupla:', error);
+      return { hasActive: false };
+    }
+  }
+
+  // ✅ MÉTODO ATUALIZADO: Verificar se pode desafiar (incluindo verificação de desafio ativo)
+  private async canChallengeCouple(challengerId: string, challengedId: string): Promise<{canChallenge: boolean, reason?: string}> {
+    try {
+      console.log('🔍 Verificando se pode desafiar:', { challengerId, challengedId });
+
+      // Verificação básica: não pode desafiar a si mesmo
+      if (challengerId === challengedId) {
+        return { canChallenge: false, reason: 'Não é possível desafiar a própria dupla' };
+      }
+
+      // ✅ NOVA VERIFICAÇÃO: Verificar se alguma das duplas já tem desafio ativo
+      const activeCheck = await this.checkActiveChallenges(challengerId, challengedId);
+      if (!activeCheck.canProceed) {
+        return { canChallenge: false, reason: activeCheck.reason };
+      }
+
+      // Verificação de ranking (se houver lógica específica)
+      const rankingCheck = await this.validateRankingChallenge(challengerId, challengedId);
+      if (!rankingCheck.valid) {
+        return { canChallenge: false, reason: rankingCheck.reason };
+      }
+
+      console.log('✅ Pode desafiar - todas as verificações passaram');
+      return { canChallenge: true };
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar se pode desafiar:', error);
+      return { canChallenge: false, reason: 'Erro interno ao verificar condições do desafio' };
+    }
+  }
+
+  // ✅ NOVO MÉTODO: Obter todas as duplas que têm desafios ativos
+  async getAllCouplesWithActiveChallenges(): Promise<Set<string>> {
+    try {
+      const activeChallengesQuery = query(
+        collection(this.firestore, this.challengesCollection),
+        where('status', 'in', this.ACTIVE_CHALLENGE_STATUSES)
+      );
+      
+      const snapshot = await getDocs(activeChallengesQuery);
+      
+      const activeCouplesSet = new Set<string>();
+      
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const challengerId = data['challengerId'];
+        const challengedId = data['challengedId'];
+        
+        if (challengerId) activeCouplesSet.add(challengerId);
+        if (challengedId) activeCouplesSet.add(challengedId);
+      });
+      
+      console.log(`🔍 Encontradas ${activeCouplesSet.size} duplas com desafios ativos:`, Array.from(activeCouplesSet));
+      
+      return activeCouplesSet;
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar duplas com desafios ativos:', error);
+      return new Set();
+    }
+  }
+  async getCouplechallengeStatus(coupleId: string): Promise<{
+    hasActiveChallenge: boolean;
+    challengeType?: 'as_challenger' | 'as_challenged';
+    challengeStatus?: ChallengeStatus;
+    opponentName?: string;
+    challengeId?: string;
+  }> {
+    try {
+      const activeCheck = await this.hasActiveChallenge(coupleId);
+      
+      if (!activeCheck.hasActive || !activeCheck.challenge) {
+        return { hasActiveChallenge: false };
+      }
+
+      const challenge = activeCheck.challenge;
+      const isChallenger = challenge.challengerId === coupleId;
+      
+      return {
+        hasActiveChallenge: true,
+        challengeType: isChallenger ? 'as_challenger' : 'as_challenged',
+        challengeStatus: challenge.status,
+        opponentName: isChallenger ? challenge.challengedName : challenge.challengerName,
+        challengeId: challenge.id
+      };
+      
+    } catch (error) {
+      console.error('❌ Erro ao obter status de desafio:', error);
+      return { hasActiveChallenge: false };
+    }
+  }
+
+  // ✅ RESPONDER DESAFIO (Aceitar/Recusar) - MANTIDO ORIGINAL
   async respondToChallenge(challengeId: string, coupleId: string, accept: boolean): Promise<void> {
     try {
       const challenge = await this.getChallengeById(challengeId);
@@ -158,10 +373,10 @@ export class ChallengeService {
         await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
         
       } else {
-        // ✅ RECUSAR: Atualizar stats + trocar posições
+        // ✅ RECUSAR: Atualizar stats + aplicar troca de posições
         await this.firebaseService.updateChallengeStats(challenge.challengedId, 'declined');
         
-        console.log('❌ Desafio recusado - aplicando troca de posições');
+        console.log('❌ Desafio recusado - desafiante assume posição do desafiado');
         
         const updates = {
           status: ChallengeStatus.DECLINED,
@@ -179,8 +394,8 @@ export class ChallengeService {
 
         await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
         
-        // Aplicar troca de posições
-        await this.swapRankingPositions(challenge.challengerId, challenge.challengedId);
+        // ✅ LÓGICA CORRETA: Desafiante assume posição de quem recusou
+        await this.applyChallengeRefusalPenalty(challenge.challengerId, challenge.challengedId);
       }
 
       console.log('✅ Resposta ao desafio processada');
@@ -191,7 +406,7 @@ export class ChallengeService {
     }
   }
 
-  // ✅ PROPOR DATAS
+  // ✅ PROPOR DATAS - MANTIDO ORIGINAL
   async proposeDates(challengeId: string, coupleId: string, dates: Date[]): Promise<void> {
     try {
       const challenge = await this.getChallengeById(challengeId);
@@ -244,7 +459,7 @@ export class ChallengeService {
     }
   }
 
-  // ✅ SELECIONAR DATA
+  // ✅ SELECIONAR DATA - MANTIDO ORIGINAL
   async selectDate(challengeId: string, coupleId: string, dateId: string): Promise<void> {
     try {
       const challenge = await this.getChallengeById(challengeId);
@@ -286,7 +501,7 @@ export class ChallengeService {
     }
   }
 
-  // ✅ FAZER CONTRAPROPOSTA
+  // ✅ FAZER CONTRAPROPOSTA - MANTIDO ORIGINAL
   async makeCounterProposal(challengeId: string, coupleId: string, counterDate: Date): Promise<void> {
     try {
       const challenge = await this.getChallengeById(challengeId);
@@ -332,7 +547,7 @@ export class ChallengeService {
     }
   }
 
-  // ✅ RESPONDER CONTRAPROPOSTA
+  // ✅ RESPONDER CONTRAPROPOSTA - MANTIDO ORIGINAL
   async respondToCounterProposal(challengeId: string, coupleId: string, accept: boolean): Promise<void> {
     try {
       const challenge = await this.getChallengeById(challengeId);
@@ -372,7 +587,7 @@ export class ChallengeService {
     }
   }
 
-  // ✅ BUSCAR DESAFIOS DE UMA DUPLA
+  // ✅ BUSCAR DESAFIOS DE UMA DUPLA - MANTIDO ORIGINAL
   getChallengesForCouple(coupleId: string): Observable<Challenge[]> {
     const challengesAsChallenger = query(
       collection(this.firestore, this.challengesCollection),
@@ -403,48 +618,215 @@ export class ChallengeService {
     );
   }
 
-  // ✅ VERIFICAR SE PODE DESAFIAR
-  private async canChallengeCouple(challengerId: string, challengedId: string): Promise<{canChallenge: boolean, reason?: string}> {
+  // ✅ LANÇAR RESULTADO DO JOGO - MANTIDO ORIGINAL
+  async reportGameResult(
+    challengeId: string, 
+    reporterId: string, 
+    winnerId: string, 
+    score?: string, 
+    notes?: string
+  ): Promise<void> {
     try {
-      console.log('🔍 Verificando se pode desafiar:', { challengerId, challengedId });
-
-      // Verificar se já existe desafio ativo entre as duplas
-      const activeQuery = query(
-        collection(this.firestore, this.challengesCollection),
-        where('challengerId', '==', challengerId),
-        where('challengedId', '==', challengedId)
-      );
-
-      const activeSnapshot = await getDocs(activeQuery);
+      const challenge = await this.getChallengeById(challengeId);
+      if (!challenge) throw new Error('Desafio não encontrado');
       
-      // Filtrar apenas desafios realmente ativos
-      const activeChallenges = activeSnapshot.docs.filter(doc => {
-        const status = doc.data()['status'];
-        return [
-          ChallengeStatus.PENDING_RESPONSE,
-          ChallengeStatus.PENDING_DATES,
-          ChallengeStatus.PENDING_DATE_SELECTION,
-          ChallengeStatus.PENDING_COUNTER_RESPONSE,
-          ChallengeStatus.SCHEDULED
-        ].includes(status);
-      });
-
-      if (activeChallenges.length > 0) {
-        console.log('❌ Já existe desafio ativo');
-        return { canChallenge: false, reason: 'Já existe um desafio ativo entre essas duplas' };
+      // Verificar se é hora de lançar resultado
+      if (challenge.status !== ChallengeStatus.GAME_TIME && challenge.status !== ChallengeStatus.PENDING_RESULT) {
+        throw new Error('Ainda não é possível lançar o resultado');
       }
-
-      console.log('✅ Pode desafiar - nenhum desafio ativo encontrado');
-      return { canChallenge: true };
+      
+      // Verificar se quem está lançando é uma das duplas
+      if (reporterId !== challenge.challengerId && reporterId !== challenge.challengedId) {
+        throw new Error('Apenas as duplas participantes podem lançar o resultado');
+      }
+      
+      // Determinar vencedor e perdedor
+      const isWinnerChallenger = winnerId === challenge.challengerId;
+      const loserId = isWinnerChallenger ? challenge.challengedId : challenge.challengerId;
+      const winnerName = isWinnerChallenger ? challenge.challengerName : challenge.challengedName;
+      const loserName = isWinnerChallenger ? challenge.challengedName : challenge.challengerName;
+      
+      // Buscar nome de quem está reportando
+      const reporterName = reporterId === challenge.challengerId ? challenge.challengerName : challenge.challengedName;
+      
+      const now = new Date();
+      
+      // ✅ CRIAR OBJETO SEM UNDEFINED - APENAS CAMPOS DEFINIDOS
+      const gameResult: any = {
+        winnerId,
+        winnerName,
+        loserId,
+        loserName,
+        reportedBy: reporterId,
+        reportedByName: reporterName,
+        reportedAt: now,
+        confirmed: false
+      };
+      
+      // ✅ ADICIONAR CAMPOS OPCIONAIS APENAS SE TIVEREM VALOR
+      if (score && score.trim() !== '') {
+        gameResult.score = score.trim();
+      }
+      
+      if (notes && notes.trim() !== '') {
+        gameResult.notes = notes.trim();
+      }
+      
+      console.log('📊 GameResult preparado:', gameResult);
+      
+      const historyItem: any = {
+        id: this.generateId(),
+        action: ChallengeAction.RESULT_REPORTED,
+        performedBy: reporterId,
+        performedByName: reporterName,
+        timestamp: now,
+        data: {
+          winnerId,
+          winnerName
+        }
+      };
+      
+      // ✅ ADICIONAR SCORE NO HISTÓRICO APENAS SE EXISTIR
+      if (score && score.trim() !== '') {
+        historyItem.data.score = score.trim();
+      }
+      
+      const updates = {
+        status: ChallengeStatus.PENDING_CONFIRMATION,
+        gameResult,
+        history: [
+          ...challenge.history,
+          historyItem
+        ]
+      };
+      
+      console.log('📝 Updates preparados:', updates);
+      
+      await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
+      
+      console.log('✅ Resultado lançado com sucesso:', challengeId);
       
     } catch (error) {
-      console.error('❌ Erro ao verificar se pode desafiar:', error);
-      // Em caso de erro, permitir o desafio (para não bloquear desnecessariamente)
-      return { canChallenge: true };
+      console.error('❌ Erro ao lançar resultado:', error);
+      throw error;
     }
   }
 
-  // ✅ MÉTODOS AUXILIARES
+  // ✅ CONFIRMAR RESULTADO - MANTIDO ORIGINAL
+  async confirmGameResult(challengeId: string, confirmerId: string, agree: boolean): Promise<void> {
+    try {
+      const challenge = await this.getChallengeById(challengeId);
+      if (!challenge) throw new Error('Desafio não encontrado');
+      
+      if (challenge.status !== ChallengeStatus.PENDING_CONFIRMATION) {
+        throw new Error('Resultado não está aguardando confirmação');
+      }
+      
+      if (!challenge.gameResult) {
+        throw new Error('Nenhum resultado foi lançado');
+      }
+      
+      // Verificar se quem está confirmando é a outra dupla (não quem lançou)
+      if (confirmerId === challenge.gameResult.reportedBy) {
+        throw new Error('Você não pode confirmar seu próprio resultado');
+      }
+      
+      if (confirmerId !== challenge.challengerId && confirmerId !== challenge.challengedId) {
+        throw new Error('Apenas as duplas participantes podem confirmar o resultado');
+      }
+      
+      const confirmerName = confirmerId === challenge.challengerId ? challenge.challengerName : challenge.challengedName;
+      const now = new Date();
+      
+      if (agree) {
+        // ✅ CONFIRMAR RESULTADO - CRIAR OBJETO SEM UNDEFINED
+        const updatedGameResult: any = {
+          ...challenge.gameResult,
+          confirmed: true,
+          confirmedBy: confirmerId,
+          confirmedAt: now
+        };
+        
+        // ✅ REMOVER CAMPOS UNDEFINED DO GAME RESULT
+        const cleanGameResult = this.removeUndefinedFields(updatedGameResult);
+        
+        const updates = {
+          status: ChallengeStatus.COMPLETED,
+          gameResult: cleanGameResult,
+          history: [
+            ...challenge.history,
+            {
+              id: this.generateId(),
+              action: ChallengeAction.RESULT_CONFIRMED,
+              performedBy: confirmerId,
+              performedByName: confirmerName,
+              timestamp: now
+            }
+          ]
+        };
+        
+        await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
+        
+        // ✅ APLICAR MUDANÇAS NO RANKING BASEADO NO RESULTADO
+        await this.applyRankingChanges(challenge.gameResult.winnerId, challenge.gameResult.loserId);
+        
+        console.log('✅ Resultado confirmado e ranking atualizado');
+        
+      } else {
+        // ❌ CONTESTAR RESULTADO
+        const updates = {
+          status: ChallengeStatus.DISPUTED_RESULT,
+          history: [
+            ...challenge.history,
+            {
+              id: this.generateId(),
+              action: ChallengeAction.RESULT_DISPUTED,
+              performedBy: confirmerId,
+              performedByName: confirmerName,
+              timestamp: now
+            }
+          ]
+        };
+        
+        await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
+        
+        console.log('⚠️ Resultado contestado - requer intervenção manual');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao confirmar resultado:', error);
+      throw error;
+    }
+  }
+
+  // ✅ VERIFICAR JOGOS QUE ESTÃO NA HORA - MANTIDO ORIGINAL
+  async checkGameTimes(): Promise<void> {
+    try {
+      console.log('🕐 Verificando horários dos jogos...');
+      
+      const q = query(
+        collection(this.firestore, this.challengesCollection),
+        where('status', '==', ChallengeStatus.SCHEDULED)
+      );
+      
+      const snapshot = await getDocs(q);
+      console.log(`📋 Encontrados ${snapshot.docs.length} jogos agendados`);
+      
+      for (const docSnap of snapshot.docs) {
+        const challenge = { id: docSnap.id, ...this.convertTimestampsToDates(docSnap.data()) } as Challenge;
+        
+        if (this.isGameTime(challenge)) {
+          console.log('⏰ Atualizando status para GAME_TIME:', challenge.id);
+          await this.updateGameTimeStatus(docSnap.id);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar horários dos jogos:', error);
+    }
+  }
+
+  // ✅ MÉTODOS AUXILIARES - MANTIDOS ORIGINAIS
   private async getChallengeById(id: string): Promise<Challenge | null> {
     try {
       const docSnap = await getDoc(doc(this.firestore, this.challengesCollection, id));
@@ -577,44 +959,49 @@ export class ChallengeService {
     }
   }
 
-  private async swapRankingPositions(challengerId: string, challengedId: string): Promise<void> {
+  // ✅ NOVO MÉTODO: Aplicar penalidade por recusar desafio (lógica correta)
+  private async applyChallengeRefusalPenalty(challengerId: string, challengedId: string): Promise<void> {
     try {
-      console.log('🔄 Iniciando troca de posições:', { challengerId, challengedId });
+      console.log('⬆️⬇️ Aplicando troca por recusa de desafio:', { challengerId, challengedId });
       
       // ✅ ATUALIZAR ESTATÍSTICAS DE DESAFIO
       await Promise.all([
-        // Desafiante: enviou desafio
         this.firebaseService.updateChallengeStats(challengerId, 'sent'),
-        // Desafiado: recebeu e recusou
         this.firebaseService.updateChallengeStats(challengedId, 'received'),
         this.firebaseService.updateChallengeStats(challengedId, 'declined')
       ]);
       
-      // Usar o método do FirebaseService
-      await this.firebaseService.swapPositions(challengerId, challengedId);
+      // ✅ APLICAR LÓGICA CORRETA: Desafiante assume posição de quem recusou
+      await this.firebaseService.applyChallengeRefusalReorganization(challengerId, challengedId);
       
-      console.log('✅ Troca de posições concluída!');
+      console.log('✅ Reorganização por recusa aplicada com sucesso!');
       
     } catch (error) {
-      console.error('❌ Erro ao trocar posições:', error);
+      console.error('❌ Erro ao aplicar reorganização por recusa:', error);
       throw error;
     }
   }
 
-  private async declineChallenge(challengeId: string, coupleId: string): Promise<void> {
-    const updates = {
-      status: ChallengeStatus.DECLINED,
-      history: [
-        {
-          id: this.generateId(),
-          action: ChallengeAction.DECLINED,
-          performedBy: coupleId,
-          timestamp: new Date()
-        }
-      ]
-    };
-
-    await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
+  // ✅ MÉTODO ATUALIZADO: Para quando desafio expira (mesma lógica da recusa)
+  private async swapRankingPositions(challengerId: string, challengedId: string): Promise<void> {
+    try {
+      console.log('⏰ Aplicando penalidade por expiração (mesma lógica da recusa)');
+      
+      // ✅ ATUALIZAR ESTATÍSTICAS DE DESAFIO
+      await Promise.all([
+        this.firebaseService.updateChallengeStats(challengerId, 'sent'),
+        this.firebaseService.updateChallengeStats(challengedId, 'received')
+      ]);
+      
+      // ✅ APLICAR MESMA LÓGICA: Desafiante assume posição de quem deixou expirar
+      await this.firebaseService.applyChallengeRefusalReorganization(challengerId, challengedId);
+      
+      console.log('✅ Penalidade por expiração aplicada!');
+      
+    } catch (error) {
+      console.error('❌ Erro ao aplicar penalidade por expiração:', error);
+      throw error;
+    }
   }
 
   private async cancelChallenge(challengeId: string, coupleId: string, action: ChallengeAction): Promise<void> {
@@ -635,96 +1022,6 @@ export class ChallengeService {
 
   private generateId(): string {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
-  }
-
-  // ✅ ATUALIZAR O MÉTODO convertDatesToTimestamp PARA REMOVER UNDEFINED
-  private convertDatesToTimestamp(obj: any): any {
-    // Primeiro remover campos undefined
-    const cleanObj = this.removeUndefinedFields(obj);
-    
-    // Depois converter datas
-    const converted = { ...cleanObj };
-    
-    // Converter datas específicas para Timestamp
-    const dateFields = ['createdAt', 'responseDeadline', 'datesDeadline', 'finalDeadline'];
-    dateFields.forEach(field => {
-      if (converted[field] instanceof Date) {
-        converted[field] = Timestamp.fromDate(converted[field]);
-      }
-    });
-
-    // Converter datas em arrays aninhados
-    if (converted.proposedDates) {
-      converted.proposedDates = converted.proposedDates.map((pd: any) => ({
-        ...pd,
-        date: pd.date instanceof Date ? Timestamp.fromDate(pd.date) : pd.date
-      }));
-    }
-
-    if (converted.selectedDate?.date instanceof Date) {
-      converted.selectedDate.date = Timestamp.fromDate(converted.selectedDate.date);
-    }
-
-    if (converted.counterProposalDate?.date instanceof Date) {
-      converted.counterProposalDate.date = Timestamp.fromDate(converted.counterProposalDate.date);
-    }
-
-    // ✅ CONVERTER DATAS NO GAMERESULT
-    if (converted.gameResult) {
-      if (converted.gameResult.reportedAt instanceof Date) {
-        converted.gameResult.reportedAt = Timestamp.fromDate(converted.gameResult.reportedAt);
-      }
-      if (converted.gameResult.confirmedAt instanceof Date) {
-        converted.gameResult.confirmedAt = Timestamp.fromDate(converted.gameResult.confirmedAt);
-      }
-    }
-
-    if (converted.history) {
-      converted.history = converted.history.map((h: any) => ({
-        ...h,
-        timestamp: h.timestamp instanceof Date ? Timestamp.fromDate(h.timestamp) : h.timestamp
-      }));
-    }
-
-    return converted;
-  }
-
-
-  private convertTimestampsToDates(obj: any): any {
-    const converted = { ...obj };
-    
-    // Converter Timestamps específicos para Date
-    const dateFields = ['createdAt', 'responseDeadline', 'datesDeadline', 'finalDeadline'];
-    dateFields.forEach(field => {
-      if (converted[field]?.toDate) {
-        converted[field] = converted[field].toDate();
-      }
-    });
-
-    // Converter datas em arrays aninhados
-    if (converted.proposedDates) {
-      converted.proposedDates = converted.proposedDates.map((pd: any) => ({
-        ...pd,
-        date: pd.date?.toDate ? pd.date.toDate() : pd.date
-      }));
-    }
-
-    if (converted.selectedDate?.date?.toDate) {
-      converted.selectedDate.date = converted.selectedDate.date.toDate();
-    }
-
-    if (converted.counterProposalDate?.date?.toDate) {
-      converted.counterProposalDate.date = converted.counterProposalDate.date.toDate();
-    }
-
-    if (converted.history) {
-      converted.history = converted.history.map((h: any) => ({
-        ...h,
-        timestamp: h.timestamp?.toDate ? h.timestamp.toDate() : h.timestamp
-      }));
-    }
-
-    return converted;
   }
 
   // ✅ MÉTODO: Verificar se é hora do jogo
@@ -786,208 +1083,6 @@ export class ChallengeService {
     }
   }
 
-  // ✅ MÉTODO: Lançar resultado do jogo
-  async reportGameResult(
-    challengeId: string, 
-    reporterId: string, 
-    winnerId: string, 
-    score?: string, 
-    notes?: string
-  ): Promise<void> {
-    try {
-      const challenge = await this.getChallengeById(challengeId);
-      if (!challenge) throw new Error('Desafio não encontrado');
-      
-      // Verificar se é hora de lançar resultado
-      if (challenge.status !== ChallengeStatus.GAME_TIME && challenge.status !== ChallengeStatus.PENDING_RESULT) {
-        throw new Error('Ainda não é possível lançar o resultado');
-      }
-      
-      // Verificar se quem está lançando é uma das duplas
-      if (reporterId !== challenge.challengerId && reporterId !== challenge.challengedId) {
-        throw new Error('Apenas as duplas participantes podem lançar o resultado');
-      }
-      
-      // Determinar vencedor e perdedor
-      const isWinnerChallenger = winnerId === challenge.challengerId;
-      const loserId = isWinnerChallenger ? challenge.challengedId : challenge.challengerId;
-      const winnerName = isWinnerChallenger ? challenge.challengerName : challenge.challengedName;
-      const loserName = isWinnerChallenger ? challenge.challengedName : challenge.challengerName;
-      
-      // Buscar nome de quem está reportando
-      const reporterName = reporterId === challenge.challengerId ? challenge.challengerName : challenge.challengedName;
-      
-      const now = new Date();
-      
-      // ✅ CRIAR OBJETO SEM UNDEFINED - APENAS CAMPOS DEFINIDOS
-      const gameResult: any = {
-        winnerId,
-        winnerName,
-        loserId,
-        loserName,
-        reportedBy: reporterId,
-        reportedByName: reporterName,
-        reportedAt: now,
-        confirmed: false
-      };
-      
-      // ✅ ADICIONAR CAMPOS OPCIONAIS APENAS SE TIVEREM VALOR
-      if (score && score.trim() !== '') {
-        gameResult.score = score.trim();
-      }
-      
-      if (notes && notes.trim() !== '') {
-        gameResult.notes = notes.trim();
-      }
-      
-      console.log('📊 GameResult preparado:', gameResult);
-      
-      const historyItem: any = {
-        id: this.generateId(),
-        action: ChallengeAction.RESULT_REPORTED,
-        performedBy: reporterId,
-        performedByName: reporterName,
-        timestamp: now,
-        data: {
-          winnerId,
-          winnerName
-        }
-      };
-      
-      // ✅ ADICIONAR SCORE NO HISTÓRICO APENAS SE EXISTIR
-      if (score && score.trim() !== '') {
-        historyItem.data.score = score.trim();
-      }
-      
-      const updates = {
-        status: ChallengeStatus.PENDING_CONFIRMATION,
-        gameResult,
-        history: [
-          ...challenge.history,
-          historyItem
-        ]
-      };
-      
-      console.log('📝 Updates preparados:', updates);
-      
-      await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
-      
-      console.log('✅ Resultado lançado com sucesso:', challengeId);
-      
-    } catch (error) {
-      console.error('❌ Erro ao lançar resultado:', error);
-      throw error;
-    }
-  }
-
-  // ✅ MÉTODO AUXILIAR: Remover campos undefined de um objeto
-  private removeUndefinedFields(obj: any): any {
-    const cleaned: any = {};
-    
-    for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined && value !== null) {
-        if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
-          // Recursivamente limpar objetos aninhados
-          const cleanedNested = this.removeUndefinedFields(value);
-          if (Object.keys(cleanedNested).length > 0) {
-            cleaned[key] = cleanedNested;
-          }
-        } else {
-          cleaned[key] = value;
-        }
-      }
-    }
-    
-    return cleaned;
-  }
-
-  // ✅ MÉTODO: Confirmar resultado
-  async confirmGameResult(challengeId: string, confirmerId: string, agree: boolean): Promise<void> {
-    try {
-      const challenge = await this.getChallengeById(challengeId);
-      if (!challenge) throw new Error('Desafio não encontrado');
-      
-      if (challenge.status !== ChallengeStatus.PENDING_CONFIRMATION) {
-        throw new Error('Resultado não está aguardando confirmação');
-      }
-      
-      if (!challenge.gameResult) {
-        throw new Error('Nenhum resultado foi lançado');
-      }
-      
-      // Verificar se quem está confirmando é a outra dupla (não quem lançou)
-      if (confirmerId === challenge.gameResult.reportedBy) {
-        throw new Error('Você não pode confirmar seu próprio resultado');
-      }
-      
-      if (confirmerId !== challenge.challengerId && confirmerId !== challenge.challengedId) {
-        throw new Error('Apenas as duplas participantes podem confirmar o resultado');
-      }
-      
-      const confirmerName = confirmerId === challenge.challengerId ? challenge.challengerName : challenge.challengedName;
-      const now = new Date();
-      
-      if (agree) {
-        // ✅ CONFIRMAR RESULTADO - CRIAR OBJETO SEM UNDEFINED
-        const updatedGameResult: any = {
-          ...challenge.gameResult,
-          confirmed: true,
-          confirmedBy: confirmerId,
-          confirmedAt: now
-        };
-        
-        // ✅ REMOVER CAMPOS UNDEFINED DO GAME RESULT
-        const cleanGameResult = this.removeUndefinedFields(updatedGameResult);
-        
-        const updates = {
-          status: ChallengeStatus.COMPLETED,
-          gameResult: cleanGameResult,
-          history: [
-            ...challenge.history,
-            {
-              id: this.generateId(),
-              action: ChallengeAction.RESULT_CONFIRMED,
-              performedBy: confirmerId,
-              performedByName: confirmerName,
-              timestamp: now
-            }
-          ]
-        };
-        
-        await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
-        
-        // ✅ APLICAR MUDANÇAS NO RANKING BASEADO NO RESULTADO
-        await this.applyRankingChanges(challenge.gameResult.winnerId, challenge.gameResult.loserId);
-        
-        console.log('✅ Resultado confirmado e ranking atualizado');
-        
-      } else {
-        // ❌ CONTESTAR RESULTADO
-        const updates = {
-          status: ChallengeStatus.DISPUTED_RESULT,
-          history: [
-            ...challenge.history,
-            {
-              id: this.generateId(),
-              action: ChallengeAction.RESULT_DISPUTED,
-              performedBy: confirmerId,
-              performedByName: confirmerName,
-              timestamp: now
-            }
-          ]
-        };
-        
-        await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), this.convertDatesToTimestamp(updates));
-        
-        console.log('⚠️ Resultado contestado - requer intervenção manual');
-      }
-      
-    } catch (error) {
-      console.error('❌ Erro ao confirmar resultado:', error);
-      throw error;
-    }
-  }
-
   // ✅ MÉTODO: Aplicar mudanças no ranking
   private async applyRankingChanges(winnerId: string, loserId: string): Promise<void> {
     try {
@@ -1025,31 +1120,113 @@ export class ChallengeService {
     }
   }
 
-  // ✅ MÉTODO: Verificar jogos que estão na hora
-  async checkGameTimes(): Promise<void> {
-    try {
-      console.log('🕐 Verificando horários dos jogos...');
-      
-      const q = query(
-        collection(this.firestore, this.challengesCollection),
-        where('status', '==', ChallengeStatus.SCHEDULED)
-      );
-      
-      const snapshot = await getDocs(q);
-      console.log(`📋 Encontrados ${snapshot.docs.length} jogos agendados`);
-      
-      for (const docSnap of snapshot.docs) {
-        const challenge = { id: docSnap.id, ...this.convertTimestampsToDates(docSnap.data()) } as Challenge;
-        
-        if (this.isGameTime(challenge)) {
-          console.log('⏰ Atualizando status para GAME_TIME:', challenge.id);
-          await this.updateGameTimeStatus(docSnap.id);
-        }
+  // ✅ CONVERSÕES DE TIMESTAMP - MANTIDAS ORIGINAIS
+  private convertDatesToTimestamp(obj: any): any {
+    // Primeiro remover campos undefined
+    const cleanObj = this.removeUndefinedFields(obj);
+    
+    // Depois converter datas
+    const converted = { ...cleanObj };
+    
+    // Converter datas específicas para Timestamp
+    const dateFields = ['createdAt', 'responseDeadline', 'datesDeadline', 'finalDeadline'];
+    dateFields.forEach(field => {
+      if (converted[field] instanceof Date) {
+        converted[field] = Timestamp.fromDate(converted[field]);
       }
-      
-    } catch (error) {
-      console.error('❌ Erro ao verificar horários dos jogos:', error);
+    });
+
+    // Converter datas em arrays aninhados
+    if (converted.proposedDates) {
+      converted.proposedDates = converted.proposedDates.map((pd: any) => ({
+        ...pd,
+        date: pd.date instanceof Date ? Timestamp.fromDate(pd.date) : pd.date
+      }));
     }
+
+    if (converted.selectedDate?.date instanceof Date) {
+      converted.selectedDate.date = Timestamp.fromDate(converted.selectedDate.date);
+    }
+
+    if (converted.counterProposalDate?.date instanceof Date) {
+      converted.counterProposalDate.date = Timestamp.fromDate(converted.counterProposalDate.date);
+    }
+
+    // ✅ CONVERTER DATAS NO GAMERESULT
+    if (converted.gameResult) {
+      if (converted.gameResult.reportedAt instanceof Date) {
+        converted.gameResult.reportedAt = Timestamp.fromDate(converted.gameResult.reportedAt);
+      }
+      if (converted.gameResult.confirmedAt instanceof Date) {
+        converted.gameResult.confirmedAt = Timestamp.fromDate(converted.gameResult.confirmedAt);
+      }
+    }
+
+    if (converted.history) {
+      converted.history = converted.history.map((h: any) => ({
+        ...h,
+        timestamp: h.timestamp instanceof Date ? Timestamp.fromDate(h.timestamp) : h.timestamp
+      }));
+    }
+
+    return converted;
   }
 
+  private convertTimestampsToDates(obj: any): any {
+    const converted = { ...obj };
+    
+    // Converter Timestamps específicos para Date
+    const dateFields = ['createdAt', 'responseDeadline', 'datesDeadline', 'finalDeadline'];
+    dateFields.forEach(field => {
+      if (converted[field]?.toDate) {
+        converted[field] = converted[field].toDate();
+      }
+    });
+
+    // Converter datas em arrays aninhados
+    if (converted.proposedDates) {
+      converted.proposedDates = converted.proposedDates.map((pd: any) => ({
+        ...pd,
+        date: pd.date?.toDate ? pd.date.toDate() : pd.date
+      }));
+    }
+
+    if (converted.selectedDate?.date?.toDate) {
+      converted.selectedDate.date = converted.selectedDate.date.toDate();
+    }
+
+    if (converted.counterProposalDate?.date?.toDate) {
+      converted.counterProposalDate.date = converted.counterProposalDate.date.toDate();
+    }
+
+    if (converted.history) {
+      converted.history = converted.history.map((h: any) => ({
+        ...h,
+        timestamp: h.timestamp?.toDate ? h.timestamp.toDate() : h.timestamp
+      }));
+    }
+
+    return converted;
+  }
+
+  // ✅ MÉTODO AUXILIAR: Remover campos undefined de um objeto
+  private removeUndefinedFields(obj: any): any {
+    const cleaned: any = {};
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+          // Recursivamente limpar objetos aninhados
+          const cleanedNested = this.removeUndefinedFields(value);
+          if (Object.keys(cleanedNested).length > 0) {
+            cleaned[key] = cleanedNested;
+          }
+        } else {
+          cleaned[key] = value;
+        }
+      }
+    }
+    
+    return cleaned;
+  }
 }

@@ -228,38 +228,84 @@ export class FirebaseService {
     }
   }
 
-  // ✅ TROCAR POSIÇÕES SIMPLIFICADO (SEM PONTOS)
-  async swapPositions(couple1Id: string, couple2Id: string): Promise<void> {
+  // ✅ MÉTODO ATUALIZADO: Aplicar reorganização por vitória em jogo (mesma lógica)
+  async swapPositions(winnerId: string, loserId: string): Promise<void> {
     try {
-      // Buscar dados das duas duplas
-      const couple1Ref = doc(this.firestore, this.couplesCollection, couple1Id);
-      const couple2Ref = doc(this.firestore, this.couplesCollection, couple2Id);
+      console.log('🏆 Aplicando reorganização após vitória em jogo:', { winnerId, loserId });
       
-      const [couple1Snap, couple2Snap] = await Promise.all([
-        getDoc(couple1Ref),
-        getDoc(couple2Ref)
+      // Buscar dados das duas duplas
+      const winnerRef = doc(this.firestore, this.couplesCollection, winnerId);
+      const loserRef = doc(this.firestore, this.couplesCollection, loserId);
+      
+      const [winnerSnap, loserSnap] = await Promise.all([
+        getDoc(winnerRef),
+        getDoc(loserRef)
       ]);
       
-      if (!couple1Snap.exists() || !couple2Snap.exists()) {
+      if (!winnerSnap.exists() || !loserSnap.exists()) {
         throw new Error('Uma ou ambas as duplas não foram encontradas');
       }
       
-      const couple1Position = couple1Snap.data()['position'];
-      const couple2Position = couple2Snap.data()['position'];
+      const winnerPosition = winnerSnap.data()['position'];
+      const loserPosition = loserSnap.data()['position'];
       
-      // Trocar posições
-      await Promise.all([
-        updateDoc(couple1Ref, { position: couple2Position }),
-        updateDoc(couple2Ref, { position: couple1Position })
-      ]);
+      console.log(`📍 Posições atuais - Vencedor: ${winnerPosition}º, Perdedor: ${loserPosition}º`);
       
-      console.log('🔄 Posições trocadas:', {
-        couple1: `${couple1Id}: ${couple1Position} → ${couple2Position}`,
-        couple2: `${couple2Id}: ${couple2Position} → ${couple1Position}`
-      });
+      // Apenas reorganizar se o vencedor estava em posição pior (número maior)
+      if (winnerPosition > loserPosition) {
+        console.log('🔄 Vencedor estava abaixo - aplicando reorganização');
+        
+        // ✅ MESMA LÓGICA: Vencedor assume posição do perdedor, perdedor desce apenas 1 posição
+        const newWinnerPosition = loserPosition; // Vencedor assume posição do perdedor
+        const newLoserPosition = loserPosition + 1; // Perdedor desce apenas 1 posição
+        
+        // Buscar todas as duplas para reorganizar
+        const allCouplesQuery = query(
+          collection(this.firestore, this.couplesCollection),
+          orderBy('position', 'asc')
+        );
+        
+        const snapshot = await getDocs(allCouplesQuery);
+        const updatePromises: Promise<void>[] = [];
+        
+        snapshot.docs.forEach(docSnap => {
+          const docId = docSnap.id;
+          const currentPosition = docSnap.data()['position'];
+          
+          if (docId === winnerId) {
+            // Vencedor assume posição do perdedor
+            console.log(`🏆 Vencedor ${winnerId}: ${winnerPosition}º → ${newWinnerPosition}º`);
+            updatePromises.push(
+              updateDoc(docSnap.ref, { position: newWinnerPosition })
+            );
+          } else if (docId === loserId) {
+            // Perdedor desce apenas 1 posição
+            console.log(`🥈 Perdedor ${loserId}: ${loserPosition}º → ${newLoserPosition}º`);
+            updatePromises.push(
+              updateDoc(docSnap.ref, { position: newLoserPosition })
+            );
+          } else if (currentPosition >= newLoserPosition && currentPosition < winnerPosition) {
+            // Duplas entre a nova posição do perdedor e a posição original do vencedor descem 1 posição
+            const newPosition = currentPosition + 1;
+            console.log(`⬇️ Dupla ${docId}: ${currentPosition}º → ${newPosition}º (efeito cascata)`);
+            updatePromises.push(
+              updateDoc(docSnap.ref, { position: newPosition })
+            );
+          }
+          // Duplas acima da posição do perdedor original não são afetadas
+        });
+        
+        await Promise.all(updatePromises);
+        
+        console.log('✅ Reorganização por vitória concluída!');
+        console.log(`📊 Resultado: Vencedor assumiu ${newWinnerPosition}º lugar, Perdedor desceu para ${newLoserPosition}º lugar`);
+        
+      } else {
+        console.log('📊 Vencedor já estava em posição superior - ranking mantido');
+      }
       
     } catch (error) {
-      console.error('❌ Erro ao trocar posições:', error);
+      console.error('❌ Erro ao aplicar reorganização por vitória:', error);
       throw error;
     }
   }
@@ -364,4 +410,83 @@ export class FirebaseService {
       console.error('❌ Erro ao reorganizar posições:', error);
     }
   }
+
+  // ✅ MÉTODO CORRETO: Reorganização por recusa de desafio
+  async applyChallengeRefusalReorganization(challengerId: string, challengedId: string): Promise<void> {
+    try {
+      console.log('🔄 Aplicando reorganização CORRETA por recusa/expiração:', { challengerId, challengedId });
+      
+      // Buscar posições atuais
+      const challengerRef = doc(this.firestore, this.couplesCollection, challengerId);
+      const challengedRef = doc(this.firestore, this.couplesCollection, challengedId);
+      
+      const [challengerSnap, challengedSnap] = await Promise.all([
+        getDoc(challengerRef),
+        getDoc(challengedRef)
+      ]);
+      
+      if (!challengerSnap.exists() || !challengedSnap.exists()) {
+        throw new Error('Uma ou ambas as duplas não foram encontradas');
+      }
+      
+      const challengerPosition = challengerSnap.data()['position']; // Ex: 4º lugar
+      const challengedPosition = challengedSnap.data()['position']; // Ex: 2º lugar
+      
+      console.log(`📍 Posições atuais - Desafiante: ${challengerPosition}º, Desafiado: ${challengedPosition}º`);
+      
+      // ✅ LÓGICA CORRETA:
+      // Desafiante (4º) → assume posição do desafiado (2º)
+      // Desafiado (2º) → desce apenas 1 posição (3º) como punição
+      // Quem estava no 3º → desce para 4º (efeito cascata)
+      
+      // Buscar todas as duplas para reorganizar
+      const allCouplesQuery = query(
+        collection(this.firestore, this.couplesCollection),
+        orderBy('position', 'asc')
+      );
+      
+      const snapshot = await getDocs(allCouplesQuery);
+      const updatePromises: Promise<void>[] = [];
+      
+      const newChallengerPosition = challengedPosition; // Desafiante vai para posição do desafiado (2º)
+      const newChallengedPosition = challengedPosition + 1; // Desafiado desce apenas 1 posição (3º)
+      
+      snapshot.docs.forEach(docSnap => {
+        const docId = docSnap.id;
+        const currentPosition = docSnap.data()['position'];
+        
+        if (docId === challengerId) {
+          // Desafiante assume posição do desafiado
+          console.log(`🟢 Desafiante ${challengerId}: ${challengerPosition}º → ${newChallengerPosition}º`);
+          updatePromises.push(
+            updateDoc(docSnap.ref, { position: newChallengerPosition })
+          );
+        } else if (docId === challengedId) {
+          // Desafiado desce apenas 1 posição como punição
+          console.log(`🔴 Desafiado ${challengedId}: ${challengedPosition}º → ${newChallengedPosition}º`);
+          updatePromises.push(
+            updateDoc(docSnap.ref, { position: newChallengedPosition })
+          );
+        } else if (currentPosition >= newChallengedPosition && currentPosition < challengerPosition) {
+          // Duplas entre a nova posição do desafiado e a posição original do desafiante descem 1 posição
+          const newPosition = currentPosition + 1;
+          console.log(`⬇️ Dupla ${docId}: ${currentPosition}º → ${newPosition}º (efeito cascata)`);
+          updatePromises.push(
+            updateDoc(docSnap.ref, { position: newPosition })
+          );
+        }
+        // Duplas acima da posição do desafiado original não são afetadas
+      });
+      
+      await Promise.all(updatePromises);
+      
+      console.log('✅ Reorganização CORRETA concluída!');
+      console.log(`📊 Resultado: Desafiante assumiu ${newChallengerPosition}º lugar, Desafiado desceu para ${newChallengedPosition}º lugar`);
+      
+    } catch (error) {
+      console.error('❌ Erro ao aplicar reorganização por recusa:', error);
+      throw error;
+    }
+  }  
+
 }
