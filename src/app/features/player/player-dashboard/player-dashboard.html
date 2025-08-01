@@ -166,21 +166,21 @@
 
             <!-- ✅ AÇÕES DA DUPLA (BOTÕES DE DESAFIO) -->
             <div class="couple-actions" *ngIf="myCouple$ | async as myCouple">
-              <!-- ✅ BOTÃO DESAFIAR (DESABILITADO SE TEM DESAFIO ATIVO) -->
+              <!-- ✅ BOTÃO DESAFIAR (VERIFICAÇÃO COMPLETA) -->
               <app-button 
-                *ngIf="canChallenge(myCouple, couple)"
+                *ngIf="canChallenge(myCouple, couple) && !targetHasActiveChallenge(couple.id!)"
                 variant="primary" 
                 size="small"
                 [loading]="isLoading"
-                [disabled]="hasActiveChallenge"
                 (click)="challengeCouple(couple)">
                 ⚔️ Desafiar
               </app-button>
               
-              <!-- ✅ MOTIVO POR QUE NÃO PODE DESAFIAR -->
-              <span *ngIf="!canChallenge(myCouple, couple) && couple.id !== myCouple.id" 
+              <!-- ✅ MOTIVO POR QUE NÃO PODE DESAFIAR (CORRIGIDO) -->
+              <span *ngIf="(!canChallenge(myCouple, couple) || targetHasActiveChallenge(couple.id!)) && couple.id !== myCouple.id" 
                     class="cannot-challenge"
-                    [class.active-challenge-blocked]="hasActiveChallenge">
+                    [class.active-challenge-blocked]="hasActiveChallenge"
+                    [class.target-active-challenge]="targetHasActiveChallenge(couple.id!)">
                 {{ getCannotChallengeReason(myCouple, couple) }}
               </span>
               

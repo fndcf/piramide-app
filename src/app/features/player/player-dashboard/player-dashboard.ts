@@ -526,19 +526,14 @@ export class PlayerDashboardComponent implements OnInit {
     return '';
   }
 
-  // ✅ ATUALIZADO: Verificar se pode desafiar (incluindo dupla alvo com desafio ativo)
+  // ✅ SIMPLIFICADO: Verificar regras básicas de desafio (sem verificação de desafio ativo)
   canChallenge(myCouple: Couple, targetCouple: Couple): boolean {
-    // ✅ NOVA VERIFICAÇÃO: Se EU tenho desafio ativo, não pode desafiar
+    // ✅ VERIFICAÇÃO: Se EU tenho desafio ativo, não pode desafiar
     if (this.hasActiveChallenge) {
       return false;
     }
 
-    // ✅ NOVA VERIFICAÇÃO: Se a DUPLA ALVO tem desafio ativo, não pode desafiar
-    if (this.targetHasActiveChallenge(targetCouple.id!)) {
-      return false;
-    }
-
-    // Verificações básicas
+    // Verificações básicas de ranking
     if (!myCouple || !targetCouple || myCouple.id === targetCouple.id) {
       return false;
     }
@@ -552,18 +547,19 @@ export class PlayerDashboardComponent implements OnInit {
     return targetPosition >= maxChallengePosition && targetPosition < myPosition;
   }
 
-  // ✅ ATUALIZADO: Motivo por que não pode desafiar (incluindo dupla alvo com desafio ativo)
+  // ✅ ATUALIZADO: Motivo completo por que não pode desafiar
   getCannotChallengeReason(myCouple: Couple, targetCouple: Couple): string {
-    // ✅ NOVA VERIFICAÇÃO: Se EU tenho desafio ativo
+    // ✅ PRIORIDADE 1: Se EU tenho desafio ativo
     if (this.hasActiveChallenge) {
       return this.getActiveChallengeShortMessage();
     }
 
-    // ✅ NOVA VERIFICAÇÃO: Se a DUPLA ALVO tem desafio ativo
+    // ✅ PRIORIDADE 2: Se a DUPLA ALVO tem desafio ativo
     if (this.targetHasActiveChallenge(targetCouple.id!)) {
       return 'Dupla já tem desafio ativo';
     }
 
+    // ✅ PRIORIDADE 3: Regras de ranking
     if (targetCouple.position >= myCouple.position) {
       return 'Posição inferior à sua';
     }
