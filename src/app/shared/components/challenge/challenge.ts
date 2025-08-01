@@ -1,4 +1,4 @@
-// src/app/shared/components/challenge/challenge.component.ts - VERSÃO COMPLETA
+// ARQUIVO COMPLETO: src/app/shared/components/challenge/challenge.ts
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
@@ -16,6 +16,7 @@ import {
 
 @Component({
   selector: 'app-challenge',
+  standalone: true,
   imports: [
     CommonModule,
     ReactiveFormsModule,
@@ -36,11 +37,16 @@ export class ChallengeComponent implements OnInit {
   @Output() selectDate = new EventEmitter<{challengeId: string, dateId: string}>();
   @Output() makeCounterProposal = new EventEmitter<{challengeId: string, date: Date}>();
   @Output() respondToCounter = new EventEmitter<{challengeId: string, accept: boolean}>();
+  @Output() reportResult = new EventEmitter<{challengeId: string, winnerId: string, score?: string, notes?: string}>();
+  @Output() confirmResult = new EventEmitter<{challengeId: string, agree: boolean}>();
 
   showDatesModal = false;
   showCounterModal = false;
+  showResultModal = false;
+  
   datesForm!: FormGroup;
   counterForm!: FormGroup;
+  resultForm!: FormGroup;
 
   // Enums para template
   ChallengeStatus = ChallengeStatus;
@@ -65,6 +71,13 @@ export class ChallengeComponent implements OnInit {
     // Formulário para contraproposta
     this.counterForm = this.fb.group({
       counterDate: ['', Validators.required]
+    });
+
+    // Formulário para resultado
+    this.resultForm = this.fb.group({
+      winner: ['', Validators.required],
+      score: [''],
+      notes: ['']
     });
   }
 
@@ -118,6 +131,24 @@ export class ChallengeComponent implements OnInit {
            !this.isExpired();
   }
 
+  get canReportResult(): boolean {
+    return (this.challenge.status === ChallengeStatus.GAME_TIME || 
+            this.challenge.status === ChallengeStatus.PENDING_RESULT) &&
+           this.isGameTime;
+  }
+
+  get canConfirmResult(): boolean {
+    return this.challenge.status === ChallengeStatus.PENDING_CONFIRMATION &&
+           !!this.challenge.gameResult &&
+           this.challenge.gameResult.reportedBy !== this.currentCoupleId;
+  }
+
+  get isGameTime(): boolean {
+    if (!this.challenge.selectedDate) return false;
+    const now = new Date();
+    return now >= this.challenge.selectedDate.date;
+  }
+
   // ✅ AÇÕES DOS BOTÕES
   onAcceptChallenge(): void {
     this.respondToChallenge.emit({
@@ -142,7 +173,7 @@ export class ChallengeComponent implements OnInit {
   onCloseDatesModal(): void {
     this.showDatesModal = false;
     this.datesForm.reset();
-    // Recriar os 3 campos básicos
+    // Recriar os campos básicos
     const datesArray = this.datesForm.get('dates') as FormArray;
     datesArray.clear();
     for (let i = 0; i < this.challenge.config.minProposedDates; i++) {
@@ -242,9 +273,40 @@ export class ChallengeComponent implements OnInit {
 
   onDeclineDates(): void {
     if (confirm('Tem certeza que deseja recusar todas as datas? Você pode fazer uma contraproposta em vez disso.')) {
-      // Por enquanto, apenas abrir o modal de contraproposta
       this.onOpenCounterModal();
     }
+  }
+
+  // ✅ MÉTODOS PARA RESULTADO
+  onOpenResultModal(): void {
+    this.showResultModal = true;
+    this.resultForm.reset();
+  }
+
+  onCloseResultModal(): void {
+    this.showResultModal = false;
+  }
+
+  onSubmitResult(): void {
+    if (this.resultForm.valid) {
+      const formValue = this.resultForm.value;
+      
+      this.reportResult.emit({
+        challengeId: this.challenge.id!,
+        winnerId: formValue.winner,
+        score: formValue.score || undefined,
+        notes: formValue.notes || undefined
+      });
+      
+      this.onCloseResultModal();
+    }
+  }
+
+  onConfirmResult(agree: boolean): void {
+    this.confirmResult.emit({
+      challengeId: this.challenge.id!,
+      agree
+    });
   }
 
   // ✅ MÉTODOS AUXILIARES
@@ -331,6 +393,14 @@ export class ChallengeComponent implements OnInit {
         return 'Aguardando resposta à contraproposta';
       case ChallengeStatus.SCHEDULED:
         return 'Agendado';
+      case ChallengeStatus.GAME_TIME:
+        return 'Jogo pode ser realizado';
+      case ChallengeStatus.PENDING_RESULT:
+        return 'Aguardando resultado';
+      case ChallengeStatus.PENDING_CONFIRMATION:
+        return 'Aguardando confirmação do resultado';
+      case ChallengeStatus.DISPUTED_RESULT:
+        return 'Resultado em disputa';
       case ChallengeStatus.EXPIRED:
         return 'Expirado';
       case ChallengeStatus.DECLINED:
@@ -353,6 +423,13 @@ export class ChallengeComponent implements OnInit {
         return 'status-pending';
       case ChallengeStatus.SCHEDULED:
         return 'status-scheduled';
+      case ChallengeStatus.GAME_TIME:
+      case ChallengeStatus.PENDING_RESULT:
+        return 'status-game-time';
+      case ChallengeStatus.PENDING_CONFIRMATION:
+        return 'status-pending';
+      case ChallengeStatus.DISPUTED_RESULT:
+        return 'status-disputed';
       case ChallengeStatus.EXPIRED:
       case ChallengeStatus.DECLINED:
       case ChallengeStatus.CANCELLED:
@@ -365,7 +442,7 @@ export class ChallengeComponent implements OnInit {
   }
 
   addDateField(): void {
-    if (this.datesArray.length < 5) { // Máximo 5 datas
+    if (this.datesArray.length < 5) {
       this.datesArray.push(this.createDateControl());
     }
   }
@@ -383,7 +460,6 @@ export class ChallengeComponent implements OnInit {
   }
 
   getMinDateTime(): string {
-    // Retorna data/hora mínima (agora + 1 hora) no formato datetime-local
     const now = new Date();
     now.setHours(now.getHours() + 1);
     return now.toISOString().slice(0, 16);

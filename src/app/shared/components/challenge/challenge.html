@@ -1,5 +1,5 @@
-<!-- src/app/shared/components/challenge/challenge.component.html -->
-<div class="challenge-card" [class]="getStatusClass()">
+<!-- ARQUIVO COMPLETO: src/app/shared/components/challenge/challenge.html -->
+<div class="challenge-card" [ngClass]="getStatusClass()">
   <div class="challenge-header">
     <div class="challenge-info">
       <h3 class="challenge-title">
@@ -7,7 +7,7 @@
         <span *ngIf="isChallenged">Você foi desafiado por</span>
         <strong>{{ isChallenger ? challenge.challengedName : challenge.challengerName }}</strong>
       </h3>
-      <span class="challenge-status" [class]="getStatusClass()">
+      <span class="challenge-status" [ngClass]="getStatusClass()">
         {{ getStatusText() }}
       </span>
     </div>
@@ -133,17 +133,139 @@
       </div>
     </div>
 
+    <!-- ✅ JOGO PODE SER REALIZADO (APÓS HORÁRIO) -->
+    <div class="challenge-actions" *ngIf="canReportResult">
+      <div class="action-section game-time-section">
+        <h4>🕐 Hora do Jogo!</h4>
+        <p class="action-description">
+          O horário do jogo chegou! Após realizarem a partida, 
+          lancem o resultado aqui.
+        </p>
+        <div class="game-info" *ngIf="challenge.selectedDate">
+          <div class="scheduled-time">
+            <strong>⏰ Horário:</strong> {{ formatDate(challenge.selectedDate.date) }}
+          </div>
+        </div>
+        <div class="action-buttons">
+          <app-button 
+            variant="primary" 
+            (click)="onOpenResultModal()"
+            [loading]="isLoading">
+            📊 Lançar Resultado
+          </app-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ RESULTADO AGUARDANDO CONFIRMAÇÃO -->
+    <div class="challenge-result" *ngIf="challenge.status === ChallengeStatus.PENDING_CONFIRMATION && challenge.gameResult">
+      <div class="result-section">
+        <h4>📊 Resultado Lançado</h4>
+        
+        <div class="result-details">
+          <div class="winner-info">
+            <span class="result-label">🏆 Vencedor:</span>
+            <strong class="winner-name">{{ challenge.gameResult.winnerName }}</strong>
+          </div>
+          
+          <div class="loser-info">
+            <span class="result-label">🥈 Perdedor:</span>
+            <span class="loser-name">{{ challenge.gameResult.loserName }}</span>
+          </div>
+          
+          <div class="score-info" *ngIf="challenge.gameResult.score">
+            <span class="result-label">🏓 Placar:</span>
+            <span class="score">{{ challenge.gameResult.score }}</span>
+          </div>
+          
+          <div class="notes-info" *ngIf="challenge.gameResult.notes">
+            <span class="result-label">📝 Observações:</span>
+            <span class="notes">{{ challenge.gameResult.notes }}</span>
+          </div>
+          
+          <div class="reported-info">
+            <small>
+              Resultado lançado por <strong>{{ challenge.gameResult.reportedByName }}</strong>
+              em {{ formatDate(challenge.gameResult.reportedAt) }}
+            </small>
+          </div>
+        </div>
+
+        <!-- ✅ AÇÕES PARA CONFIRMAR -->
+        <div class="confirmation-actions" *ngIf="canConfirmResult">
+          <h5>⚠️ Confirme o Resultado</h5>
+          <p class="confirmation-description">
+            O resultado foi lançado pela outra dupla. 
+            Você confirma que este resultado está correto?
+          </p>
+          <div class="action-buttons">
+            <app-button 
+              variant="primary" 
+              (click)="onConfirmResult(true)"
+              [loading]="isLoading">
+              ✅ Confirmar Resultado
+            </app-button>
+            <app-button 
+              variant="danger" 
+              (click)="onConfirmResult(false)"
+              [loading]="isLoading">
+              ❌ Contestar Resultado
+            </app-button>
+          </div>
+        </div>
+
+        <!-- ✅ AGUARDANDO CONFIRMAÇÃO -->
+        <div class="waiting-confirmation" *ngIf="!canConfirmResult && challenge.gameResult.reportedBy === currentCoupleId">
+          <p class="waiting-message">
+            ⏳ Aguardando a outra dupla confirmar o resultado...
+          </p>
+        </div>
+      </div>
+    </div>
+
     <!-- ✅ JOGO AGENDADO -->
-    <div class="challenge-scheduled" *ngIf="challenge.status === ChallengeStatus.SCHEDULED">
+    <div class="challenge-scheduled" *ngIf="challenge.status === ChallengeStatus.SCHEDULED && challenge.selectedDate">
       <div class="scheduled-section">
         <h4>🎯 Jogo Agendado</h4>
         <div class="scheduled-date">
-          <strong>{{ formatDate(challenge.selectedDate!.date) }}</strong>
-          <span class="weekend-badge" *ngIf="challenge.selectedDate!.isWeekend">Final de Semana</span>
+          <strong>{{ formatDate(challenge.selectedDate.date) }}</strong>
+          <span class="weekend-badge" *ngIf="challenge.selectedDate.isWeekend">Final de Semana</span>
         </div>
         <p class="scheduled-note">
-          Lembre-se de comparecer no horário combinado. Boa sorte!
+          Lembre-se de comparecer no horário combinado. Após o jogo, voltem aqui para lançar o resultado!
         </p>
+      </div>
+    </div>
+
+    <!-- ✅ RESULTADO CONFIRMADO -->
+    <div class="challenge-completed" *ngIf="challenge.status === ChallengeStatus.COMPLETED && challenge.gameResult">
+      <div class="completed-section">
+        <h4>🎉 Jogo Concluído!</h4>
+        
+        <div class="final-result">
+          <div class="winner-highlight">
+            <span class="trophy">🏆</span>
+            <strong class="winner-name">{{ challenge.gameResult.winnerName }}</strong>
+            <span class="winner-label">VENCEDOR</span>
+          </div>
+          
+          <div class="vs-divider">vs</div>
+          
+          <div class="loser-info">
+            <span class="loser-name">{{ challenge.gameResult.loserName }}</span>
+          </div>
+          
+          <div class="score-display" *ngIf="challenge.gameResult.score">
+            <strong>Placar: {{ challenge.gameResult.score }}</strong>
+          </div>
+        </div>
+        
+        <div class="completion-info">
+          <small>
+            Resultado confirmado em {{ formatDate(challenge.gameResult.confirmedAt!) }}
+            <br>Ranking atualizado automaticamente
+          </small>
+        </div>
       </div>
     </div>
 
@@ -160,8 +282,20 @@
       <p class="final-message cancelled">🚫 Este desafio foi cancelado.</p>
     </div>
 
-    <div class="challenge-final" *ngIf="challenge.status === ChallengeStatus.COMPLETED">
-      <p class="final-message completed">✅ Este jogo foi realizado.</p>
+    <div class="challenge-final" *ngIf="challenge.status === ChallengeStatus.DISPUTED_RESULT">
+      <div class="disputed-section">
+        <h4>⚠️ Resultado em Disputa</h4>
+        <p class="disputed-message">
+          O resultado foi contestado e requer intervenção do administrador.
+          Entre em contato para resolver a situação.
+        </p>
+        
+        <div class="disputed-result" *ngIf="challenge.gameResult">
+          <p><strong>Resultado contestado:</strong></p>
+          <p>🏆 {{ challenge.gameResult.winnerName }} vs 🥈 {{ challenge.gameResult.loserName }}</p>
+          <p *ngIf="challenge.gameResult.score"><strong>Placar:</strong> {{ challenge.gameResult.score }}</p>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -285,6 +419,98 @@
         type="button"
         variant="outline"
         (click)="onCloseCounterModal()">
+        Cancelar
+      </app-button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ✅ MODAL PARA LANÇAR RESULTADO -->
+<app-modal
+  [isOpen]="showResultModal"
+  title="📊 Lançar Resultado do Jogo"
+  size="medium"
+  (closeModal)="onCloseResultModal()">
+
+  <form [formGroup]="resultForm" (ngSubmit)="onSubmitResult()">
+    <div class="result-form">
+      <div class="form-description" *ngIf="challenge.selectedDate">
+        <p>
+          <strong>🏓 Jogo realizado em:</strong> {{ formatDate(challenge.selectedDate.date) }}
+        </p>
+        <p>Informe o resultado da partida abaixo:</p>
+      </div>
+
+      <!-- Resto do formulário permanece igual... -->
+      <div class="winner-selection">
+        <label class="form-label">🏆 Quem venceu o jogo?</label>
+        
+        <div class="winner-options">
+          <label class="winner-option">
+            <input 
+              type="radio" 
+              formControlName="winner" 
+              [value]="challenge.challengerId"
+              class="radio-input">
+            <div class="option-content">
+              <span class="team-name">{{ challenge.challengerName }}</span>
+              <span class="team-label">Dupla Desafiante</span>
+            </div>
+          </label>
+          
+          <label class="winner-option">
+            <input 
+              type="radio" 
+              formControlName="winner" 
+              [value]="challenge.challengedId"
+              class="radio-input">
+            <div class="option-content">
+              <span class="team-name">{{ challenge.challengedName }}</span>
+              <span class="team-label">Dupla Desafiada</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <app-input
+        formControlName="score"
+        label="🏓 Placar (opcional)"
+        type="text"
+        placeholder="Ex: 21-15, 18-21, 21-19">
+      </app-input>
+
+      <div class="form-group">
+        <label class="form-label">📝 Observações (opcional)</label>
+        <textarea 
+          formControlName="notes"
+          class="textarea-input"
+          placeholder="Ex: Jogo disputado, boa partida, etc."
+          rows="3">
+        </textarea>
+      </div>
+
+      <div class="form-note">
+        <p><strong>⚠️ Importante:</strong></p>
+        <ul>
+          <li>O resultado será enviado para confirmação da outra dupla</li>
+          <li>Após confirmação, o ranking será atualizado automaticamente</li>
+          <li>Seja honesto e preciso com o resultado</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <app-button 
+        type="submit"
+        variant="primary"
+        [disabled]="resultForm.invalid"
+        [loading]="isLoading">
+        📊 Lançar Resultado
+      </app-button>
+      <app-button 
+        type="button"
+        variant="outline"
+        (click)="onCloseResultModal()">
         Cancelar
       </app-button>
     </div>

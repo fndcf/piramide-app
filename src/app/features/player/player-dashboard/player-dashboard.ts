@@ -39,9 +39,56 @@ export class PlayerDashboardComponent implements OnInit {
     private challengeService: ChallengeService // ✅ Novo serviço
   ) {}
 
+  private gameTimeInterval?: any;
+
   ngOnInit(): void {
     this.currentUser = this.authService.getCurrentUser();
     this.loadPlayerData();
+
+    // ✅ INICIAR VERIFICAÇÃO AUTOMÁTICA A CADA 30 SEGUNDOS
+    this.startGameTimeCheck();
+  }
+
+  ngOnDestroy(): void {
+    // ✅ LIMPAR INTERVAL AO DESTRUIR COMPONENTE
+    if (this.gameTimeInterval) {
+      clearInterval(this.gameTimeInterval);
+    }
+  }
+
+  // ✅ NOVO MÉTODO: Verificação automática
+  private startGameTimeCheck(): void {
+    // Verificar imediatamente
+    this.checkScheduledGames();
+    
+    // Verificar a cada 30 segundos
+    this.gameTimeInterval = setInterval(() => {
+      this.checkScheduledGames();
+    }, 30000); // 30 segundos
+    
+    console.log('🕐 Verificação automática de horários iniciada (30s)');
+  }
+
+  // ✅ NOVO MÉTODO: Verificar jogos agendados
+  private async checkScheduledGames(): Promise<void> {
+    try {
+      console.log('🔍 Verificando se há jogos na hora...');
+      await this.challengeService.checkGameTimes();
+    } catch (error) {
+      console.error('❌ Erro ao verificar jogos:', error);
+    }
+  }
+
+  // ✅ MÉTODO PARA FORÇAR VERIFICAÇÃO MANUAL (BOTÃO DE TESTE)
+  async forceCheckGameTime(): Promise<void> {
+    try {
+      console.log('🔄 Forçando verificação de horários...');
+      await this.challengeService.checkGameTimes();
+      alert('✅ Verificação concluída! Verifique os desafios.');
+    } catch (error) {
+      console.error('❌ Erro na verificação:', error);
+      alert('❌ Erro na verificação: ' + error);
+    }
   }
 
   private loadPlayerData(): void {
@@ -205,6 +252,70 @@ export class PlayerDashboardComponent implements OnInit {
     } catch (error: any) {
       console.error('❌ Erro ao responder contraproposta:', error);
       alert(error.message || 'Erro ao responder contraproposta');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async onReportResult(event: {challengeId: string, winnerId: string, score?: string, notes?: string}): Promise<void> {
+    if (!this.currentUser?.phone) return;
+
+    try {
+      this.isLoading = true;
+      
+      const myCouple = await this.getCurrentCouple();
+      if (!myCouple?.id) throw new Error('Dupla não encontrada');
+
+      // ✅ LIMPAR CAMPOS VAZIOS ANTES DE ENVIAR
+      const score = event.score && event.score.trim() !== '' ? event.score.trim() : undefined;
+      const notes = event.notes && event.notes.trim() !== '' ? event.notes.trim() : undefined;
+
+      console.log('📊 Enviando resultado:', {
+        challengeId: event.challengeId,
+        winnerId: event.winnerId,
+        score,
+        notes,
+        reporterId: myCouple.id
+      });
+
+      await this.challengeService.reportGameResult(
+        event.challengeId, 
+        myCouple.id, 
+        event.winnerId, 
+        score, 
+        notes
+      );
+      
+      alert('✅ Resultado lançado! Aguardando confirmação da outra dupla.');
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao lançar resultado:', error);
+      alert(error.message || 'Erro ao lançar resultado');
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async onConfirmResult(event: {challengeId: string, agree: boolean}): Promise<void> {
+    if (!this.currentUser?.phone) return;
+
+    try {
+      this.isLoading = true;
+      
+      const myCouple = await this.getCurrentCouple();
+      if (!myCouple?.id) throw new Error('Dupla não encontrada');
+
+      await this.challengeService.confirmGameResult(event.challengeId, myCouple.id, event.agree);
+      
+      if (event.agree) {
+        alert('✅ Resultado confirmado! Ranking atualizado.');
+      } else {
+        alert('⚠️ Resultado contestado. Um administrador irá resolver a situação.');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao confirmar resultado:', error);
+      alert(error.message || 'Erro ao confirmar resultado');
     } finally {
       this.isLoading = false;
     }

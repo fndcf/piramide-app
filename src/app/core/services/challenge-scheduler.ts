@@ -18,6 +18,8 @@ import {
   ChallengeAction 
 } from '../interfaces/challenge.interfaces';
 
+import { ChallengeService } from './challenge';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -28,17 +30,6 @@ export class ChallengeSchedulerService {
 
   constructor() {
     this.startScheduler();
-  }
-
-  // ✅ INICIAR VERIFICAÇÃO AUTOMÁTICA DE PRAZOS
-  private startScheduler(): void {
-    // Verificar a cada 5 minutos
-    this.schedulerSubscription = interval(5 * 60 * 1000).subscribe(() => {
-      this.checkExpiredChallenges();
-    });
-
-    // Verificar imediatamente ao iniciar
-    this.checkExpiredChallenges();
   }
 
   // ✅ VERIFICAR DESAFIOS EXPIRADOS
@@ -100,11 +91,11 @@ export class ChallengeSchedulerService {
     try {
       const now = new Date();
       
-      // Determinar ação baseada no status atual
+      // Determinar se deve trocar posições
       let shouldSwapPositions = false;
       
       if (challenge.status === ChallengeStatus.PENDING_RESPONSE) {
-        // Se não respondeu, desafiante assume posição
+        // ✅ Se não respondeu no prazo, desafiante assume posição
         shouldSwapPositions = true;
       }
 
@@ -124,32 +115,19 @@ export class ChallengeSchedulerService {
 
       await updateDoc(doc(this.firestore, this.challengesCollection, challengeId), updates);
 
-      // Se necessário, trocar posições no ranking
+      // ✅ Se necessário, trocar posições no ranking
       if (shouldSwapPositions) {
-        await this.handleRankingSwap(challenge.challengerId, challenge.challengedId);
+        console.log('⏰ Desafio expirado - aplicando troca de posições');
+        
+        // Importar e usar o ChallengeService
+        const challengeService = inject(ChallengeService);
+        await challengeService['swapRankingPositions'](challenge.challengerId, challenge.challengedId);
       }
 
       console.log('⏰ Desafio expirado:', challengeId);
 
     } catch (error) {
       console.error('❌ Erro ao expirar desafio:', error);
-    }
-  }
-
-  // ✅ TROCAR POSIÇÕES NO RANKING
-  private async handleRankingSwap(challengerId: string, challengedId: string): Promise<void> {
-    try {
-      // Implementar lógica de troca de posições
-      // Por simplicidade, vou apenas log por enquanto
-      console.log('🔄 Trocando posições no ranking:', { challengerId, challengedId });
-      
-      // TODO: Implementar troca real de posições
-      // 1. Buscar posições atuais das duplas
-      // 2. Atualizar posições no Firestore
-      // 3. Recalcular ranking se necessário
-      
-    } catch (error) {
-      console.error('❌ Erro ao trocar posições:', error);
     }
   }
 
@@ -202,4 +180,45 @@ export class ChallengeSchedulerService {
   isSchedulerRunning(): boolean {
     return !!this.schedulerSubscription && !this.schedulerSubscription.closed;
   }
+
+  // ✅ ADICIONAR VERIFICAÇÃO DE HORÁRIOS DE JOGOS
+  private async checkGameTimes(): Promise<void> {
+    try {
+      const challengeService = inject(ChallengeService);
+      await challengeService['checkGameTimes']();
+    } catch (error) {
+      console.error('❌ Erro ao verificar horários dos jogos no scheduler:', error);
+    }
+  }
+
+  // ✅ ATUALIZAR O MÉTODO startScheduler para incluir verificação de jogos
+  private startScheduler(): void {
+  // Verificar a cada 1 minuto (ao invés de 5 minutos)
+  this.schedulerSubscription = interval(60 * 1000).subscribe(() => {
+    this.checkExpiredChallenges();
+    this.checkScheduledGames();
+  });
+
+  // Verificar imediatamente ao iniciar
+  this.checkExpiredChallenges();
+  this.checkScheduledGames();
+  
+  console.log('⏰ Scheduler iniciado - verificação a cada 1 minuto');
+}
+
+// ✅ NOVO MÉTODO
+private async checkScheduledGames(): Promise<void> {
+  try {
+    console.log('🔍 Scheduler verificando jogos agendados...');
+    
+    // Importar ChallengeService dinamicamente
+    const challengeService = inject(ChallengeService);
+    await challengeService.checkGameTimes();
+    
+  } catch (error) {
+    console.error('❌ Erro no scheduler ao verificar jogos:', error);
+  }
+}
+
+
 }
