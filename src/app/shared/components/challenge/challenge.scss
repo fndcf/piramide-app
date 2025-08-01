@@ -1,0 +1,412 @@
+// src/app/shared/components/challenge/challenge.component.scss
+.challenge-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #6c757d;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  // Status colors
+  &.status-pending {
+    border-left-color: #ffc107;
+    
+    .challenge-status {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+  }
+
+  &.status-scheduled {
+    border-left-color: #28a745;
+    
+    .challenge-status {
+      background-color: #d4edda;
+      color: #155724;
+    }
+  }
+
+  &.status-negative {
+    border-left-color: #dc3545;
+    
+    .challenge-status {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  }
+
+  &.status-completed {
+    border-left-color: #007bff;
+    
+    .challenge-status {
+      background-color: #d1ecf1;
+      color: #0c5460;
+    }
+  }
+}
+
+.challenge-header {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.challenge-info {
+  flex: 1;
+}
+
+.challenge-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: #333;
+  
+  strong {
+    color: #007bff;
+  }
+}
+
+.challenge-status {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.challenge-time {
+  text-align: right;
+  color: #666;
+  font-weight: 500;
+  
+  small {
+    font-size: 0.85rem;
+  }
+}
+
+.challenge-content {
+  padding: 1.5rem;
+}
+
+.challenge-details {
+  margin-bottom: 1.5rem;
+  
+  .challenge-date {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+  }
+}
+
+// ✅ SEÇÕES DE AÇÕES
+.challenge-actions {
+  margin-bottom: 1.5rem;
+}
+
+.action-section {
+  h4 {
+    margin: 0 0 1rem 0;
+    color: #333;
+    font-size: 1.1rem;
+  }
+  
+  .action-description {
+    margin: 0 0 1.5rem 0;
+    color: #666;
+    line-height: 1.5;
+    
+    strong {
+      color: #333;
+    }
+    
+    small {
+      font-size: 0.85rem;
+      color: #888;
+    }
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+  }
+}
+
+// ✅ DATAS PROPOSTAS
+.proposed-dates {
+  margin: 1rem 0;
+}
+
+.date-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: #007bff;
+    background-color: #f8f9ff;
+  }
+  
+  .date-info {
+    flex: 1;
+    
+    strong {
+      display: block;
+      color: #333;
+      margin-bottom: 0.25rem;
+    }
+  }
+}
+
+.weekend-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+// ✅ JOGO AGENDADO
+.challenge-scheduled {
+  .scheduled-section {
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    
+    h4 {
+      margin: 0 0 1rem 0;
+      color: #155724;
+      font-size: 1.2rem;
+    }
+    
+    .scheduled-date {
+      margin: 1rem 0;
+      
+      strong {
+        font-size: 1.1rem;
+        color: #155724;
+        display: block;
+        margin-bottom: 0.5rem;
+      }
+    }
+    
+    .scheduled-note {
+      margin: 1rem 0 0 0;
+      color: #155724;
+      font-style: italic;
+    }
+  }
+}
+
+// ✅ ESTADOS FINAIS
+.challenge-final {
+  text-align: center;
+  padding: 1rem;
+  
+  .final-message {
+    margin: 0;
+    padding: 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    
+    &.expired {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    
+    &.declined {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    
+    &.cancelled {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    
+    &.completed {
+      background-color: #d1ecf1;
+      color: #0c5460;
+    }
+  }
+}
+
+// ✅ FORMULÁRIOS DOS MODAIS
+.dates-form,
+.counter-form {
+  .form-description {
+    margin: 0 0 1.5rem 0;
+    color: #666;
+    line-height: 1.5;
+    
+    strong {
+      color: #333;
+    }
+  }
+}
+
+.date-input-group {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+.date-input-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  
+  app-input {
+    flex: 1;
+  }
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+}
+
+.weekend-indicator {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.weekend-note {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  color: #155724;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.form-actions {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+  }
+}
+
+// ✅ CONTRAPROPOSTA
+.counter-proposal {
+  margin: 1rem 0;
+  
+  .proposed-date {
+    padding: 1rem;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border-radius: 8px;
+    text-align: center;
+    
+    strong {
+      font-size: 1.1rem;
+      color: #0d47a1;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+  }
+}
+
+// ✅ RESPONSIVIDADE
+@media (max-width: 768px) {
+  .challenge-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .challenge-time {
+    text-align: left;
+  }
+  
+  .date-option {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    
+    .date-info {
+      width: 100%;
+    }
+  }
+  
+  .action-buttons {
+    app-button {
+      flex: 1;
+      min-width: 120px;
+    }
+  }
+}
+
+// ✅ ANIMAÇÕES
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.challenge-card.status-pending {
+  animation: pulse 3s infinite;
+  
+  &:hover {
+    animation: none;
+  }
+}
+
+// ✅ ESTADOS DE LOADING
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  z-index: 10;
+}

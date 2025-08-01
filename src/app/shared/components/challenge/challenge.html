@@ -1,0 +1,292 @@
+<!-- src/app/shared/components/challenge/challenge.component.html -->
+<div class="challenge-card" [class]="getStatusClass()">
+  <div class="challenge-header">
+    <div class="challenge-info">
+      <h3 class="challenge-title">
+        <span *ngIf="isChallenger">Você desafiou</span>
+        <span *ngIf="isChallenged">Você foi desafiado por</span>
+        <strong>{{ isChallenger ? challenge.challengedName : challenge.challengerName }}</strong>
+      </h3>
+      <span class="challenge-status" [class]="getStatusClass()">
+        {{ getStatusText() }}
+      </span>
+    </div>
+    
+    <div class="challenge-time" *ngIf="!isExpired()">
+      <small>{{ formatTimeRemaining() }}</small>
+    </div>
+  </div>
+
+  <div class="challenge-content">
+    <div class="challenge-details">
+      <p class="challenge-date">
+        <strong>Criado em:</strong> {{ formatDate(challenge.createdAt) }}
+      </p>
+    </div>
+
+    <!-- ✅ AÇÕES PENDENTES DE RESPOSTA -->
+    <div class="challenge-actions" *ngIf="canRespond">
+      <div class="action-section">
+        <h4>Responder ao Desafio</h4>
+        <p class="action-description">
+          Você tem até <strong>{{ formatDate(challenge.responseDeadline) }}</strong> para responder.
+          <br><small><strong>Atenção:</strong> Se recusar, o desafiante assumirá sua posição no ranking.</small>
+        </p>
+        <div class="action-buttons">
+          <app-button 
+            variant="primary" 
+            (click)="onAcceptChallenge()"
+            [loading]="isLoading">
+            Aceitar Desafio
+          </app-button>
+          <app-button 
+            variant="danger" 
+            (click)="onDeclineChallenge()"
+            [loading]="isLoading">
+            Recusar
+          </app-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ PROPOR DATAS -->
+    <div class="challenge-actions" *ngIf="canProposeDates">
+      <div class="action-section">
+        <h4>Propor Datas para o Jogo</h4>
+        <p class="action-description">
+          Você deve propor {{ challenge.config.minProposedDates }} datas para realizar o jogo.
+          <span *ngIf="challenge.config.requireWeekendDate">
+            <br><strong>Importante:</strong> Pelo menos uma data deve ser no final de semana.
+          </span>
+        </p>
+        <div class="action-buttons">
+          <app-button 
+            variant="primary" 
+            (click)="onOpenDatesModal()"
+            [loading]="isLoading">
+            Propor Datas
+          </app-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ SELECIONAR DATA -->
+    <div class="challenge-actions" *ngIf="canSelectDate">
+      <div class="action-section">
+        <h4>Selecionar Data</h4>
+        <p class="action-description">Escolha uma das datas propostas:</p>
+        
+        <div class="proposed-dates">
+          <div 
+            class="date-option" 
+            *ngFor="let proposedDate of challenge.proposedDates"
+            (click)="onSelectDate(proposedDate.id)">
+            <div class="date-info">
+              <strong>{{ formatDate(proposedDate.date) }}</strong>
+              <span class="weekend-badge" *ngIf="proposedDate.isWeekend">Final de Semana</span>
+            </div>
+            <app-button variant="outline" size="small">
+              Selecionar
+            </app-button>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <app-button 
+            variant="outline" 
+            (click)="onOpenCounterModal()">
+            Fazer Contraproposta
+          </app-button>
+          <app-button 
+            variant="danger" 
+            (click)="onDeclineDates()">
+            Recusar Todas
+          </app-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ RESPONDER CONTRAPROPOSTA -->
+    <div class="challenge-actions" *ngIf="canRespondToCounter">
+      <div class="action-section">
+        <h4>Contraproposta Recebida</h4>
+        <div class="counter-proposal">
+          <div class="proposed-date">
+            <strong>{{ formatDate(challenge.counterProposalDate!.date) }}</strong>
+            <span class="weekend-badge" *ngIf="challenge.counterProposalDate!.isWeekend">Final de Semana</span>
+          </div>
+        </div>
+        <div class="action-buttons">
+          <app-button 
+            variant="primary" 
+            (click)="onAcceptCounter()"
+            [loading]="isLoading">
+            Aceitar Data
+          </app-button>
+          <app-button 
+            variant="danger" 
+            (click)="onDeclineCounter()"
+            [loading]="isLoading">
+            Recusar
+          </app-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ JOGO AGENDADO -->
+    <div class="challenge-scheduled" *ngIf="challenge.status === ChallengeStatus.SCHEDULED">
+      <div class="scheduled-section">
+        <h4>🎯 Jogo Agendado</h4>
+        <div class="scheduled-date">
+          <strong>{{ formatDate(challenge.selectedDate!.date) }}</strong>
+          <span class="weekend-badge" *ngIf="challenge.selectedDate!.isWeekend">Final de Semana</span>
+        </div>
+        <p class="scheduled-note">
+          Lembre-se de comparecer no horário combinado. Boa sorte!
+        </p>
+      </div>
+    </div>
+
+    <!-- ✅ ESTADOS FINAIS -->
+    <div class="challenge-final" *ngIf="challenge.status === ChallengeStatus.EXPIRED">
+      <p class="final-message expired">⏰ Este desafio expirou por falta de resposta.</p>
+    </div>
+
+    <div class="challenge-final" *ngIf="challenge.status === ChallengeStatus.DECLINED">
+      <p class="final-message declined">❌ Este desafio foi recusado.</p>
+    </div>
+
+    <div class="challenge-final" *ngIf="challenge.status === ChallengeStatus.CANCELLED">
+      <p class="final-message cancelled">🚫 Este desafio foi cancelado.</p>
+    </div>
+
+    <div class="challenge-final" *ngIf="challenge.status === ChallengeStatus.COMPLETED">
+      <p class="final-message completed">✅ Este jogo foi realizado.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ MODAL PARA PROPOR DATAS -->
+<app-modal
+  [isOpen]="showDatesModal"
+  title="Propor Datas para o Jogo"
+  size="medium"
+  (closeModal)="onCloseDatesModal()">
+
+  <form [formGroup]="datesForm" (ngSubmit)="onSubmitDates()">
+    <div class="dates-form">
+      <p class="form-description">
+        Escolha {{ challenge.config.minProposedDates }} datas que funcionem para sua dupla.
+        <span *ngIf="challenge.config.requireWeekendDate">
+          <br><strong>Importante:</strong> Pelo menos uma deve ser no final de semana.
+        </span>
+      </p>
+
+      <div formArrayName="dates">
+        <div 
+          class="date-input-group" 
+          *ngFor="let dateControl of datesArray.controls; let i = index"
+          [formGroupName]="i">
+          
+          <div class="date-input-row">
+            <app-input
+              formControlName="date"
+              type="datetime-local"
+              [label]="'Data ' + (i + 1)"
+              [required]="true">
+            </app-input>
+            
+            <div class="weekend-indicator" *ngIf="isDateWeekend(dateControl.get('date')?.value)">
+              🏖️ Final de Semana
+            </div>
+
+            <app-button 
+              *ngIf="datesArray.length > challenge.config.minProposedDates"
+              type="button"
+              variant="danger" 
+              size="small"
+              (click)="removeDateField(i)">
+              Remover
+            </app-button>
+          </div>
+
+          <app-input
+            formControlName="description"
+            type="text"
+            label="Observação (opcional)"
+            placeholder="Ex: Melhor horário, local preferido...">
+          </app-input>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <app-button 
+          *ngIf="datesArray.length < 5"
+          type="button"
+          variant="outline" 
+          (click)="addDateField()">
+          Adicionar Mais Uma Data
+        </app-button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <app-button 
+        type="submit"
+        variant="primary"
+        [disabled]="datesForm.invalid"
+        [loading]="isLoading">
+        Enviar Propostas
+      </app-button>
+      <app-button 
+        type="button"
+        variant="outline"
+        (click)="onCloseDatesModal()">
+        Cancelar
+      </app-button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- ✅ MODAL PARA CONTRAPROPOSTA -->
+<app-modal
+  [isOpen]="showCounterModal"
+  title="Fazer Contraproposta"
+  size="small"
+  (closeModal)="onCloseCounterModal()">
+
+  <form [formGroup]="counterForm" (ngSubmit)="onSubmitCounter()">
+    <div class="counter-form">
+      <p class="form-description">
+        Proponha uma data alternativa para o jogo:
+      </p>
+
+      <app-input
+        formControlName="counterDate"
+        type="datetime-local"
+        label="Data Proposta"
+        [required]="true">
+      </app-input>
+
+      <div class="weekend-note" *ngIf="isDateWeekend(counterForm.get('counterDate')?.value)">
+        🏖️ Esta é uma data de final de semana
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <app-button 
+        type="submit"
+        variant="primary"
+        [disabled]="counterForm.invalid"
+        [loading]="isLoading">
+        Enviar Contraproposta
+      </app-button>
+      <app-button 
+        type="button"
+        variant="outline"
+        (click)="onCloseCounterModal()">
+        Cancelar
+      </app-button>
+    </div>
+  </form>
+</app-modal>

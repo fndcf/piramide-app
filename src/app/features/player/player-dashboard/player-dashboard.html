@@ -1,3 +1,4 @@
+<!-- src/app/features/player/player-dashboard/player-dashboard.component.html - ATUALIZADO -->
 <div class="player-dashboard">
   <header class="dashboard-header">
     <div class="header-content">
@@ -12,66 +13,138 @@
   </header>
 
   <main class="dashboard-main">
-    <!-- Informações da Minha Dupla -->
-    <section class="my-couple-section" *ngIf="myCouple$ | async as myCouple">
-      <div class="section-header">
-        <h2>Minha Dupla</h2>
-      </div>
-      
-      <div class="my-couple-card" *ngIf="allCouples$ | async as allCouples">
-        <div class="couple-info">
-          <h3>{{ myCouple.player1Name }} / {{ myCouple.player2Name }}</h3>
-          <div class="couple-stats">
-            <div class="stat">
-              <span class="stat-label">Posição:</span>
-              <span class="stat-value position">{{ getPosition(allCouples, myCouple) }}º</span>
+    <!-- ✅ NAVEGAÇÃO POR ABAS -->
+    <div class="dashboard-tabs">
+      <button 
+        class="tab-button"
+        [class.active]="selectedTab === 'ranking'"
+        (click)="selectTab('ranking')">
+        🏆 Ranking
+      </button>
+      <button 
+        class="tab-button"
+        [class.active]="selectedTab === 'challenges'"
+        (click)="selectTab('challenges')">
+        ⚔️ Desafios
+      </button>
+    </div>
+
+    <!-- ✅ ABA DO RANKING -->
+    <div class="tab-content" *ngIf="selectedTab === 'ranking'">
+      <!-- Informações da Minha Dupla -->
+      <section class="my-couple-section" *ngIf="myCouple$ | async as myCouple">
+        <div class="section-header">
+          <h2>Minha Dupla</h2>
+        </div>
+        
+        <div class="my-couple-card" *ngIf="allCouples$ | async as allCouples">
+          <div class="couple-info">
+            <h3>{{ myCouple.player1Name }} / {{ myCouple.player2Name }}</h3>
+            <div class="couple-stats">
+              <div class="stat">
+                <span class="stat-label">Posição:</span>
+                <span class="stat-value position">{{ getPosition(allCouples, myCouple) }}º</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Pontos:</span>
+                <span class="stat-value points">{{ myCouple.points || 0 }}</span>
+              </div>
             </div>
-            <div class="stat">
-              <span class="stat-label">Pontos:</span>
-              <span class="stat-value points">{{ myCouple.points || 0 }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Ranking Geral -->
+      <section class="ranking-section">
+        <div class="section-header">
+          <h2>Ranking Geral</h2>
+        </div>
+
+        <div class="ranking-list" *ngIf="allCouples$ | async as allCouples; else loading">
+          <div class="ranking-item" 
+               *ngFor="let couple of allCouples; let i = index; trackBy: trackByCouple"
+               [class.my-couple]="(myCouple$ | async) && couple.id === (myCouple$ | async)?.id">
+            
+            <div class="position-badge">
+              {{ i + 1 }}º
+            </div>
+            
+            <div class="couple-details">
+              <h4>{{ couple.player1Name }} / {{ couple.player2Name }}</h4>
+              <span class="points">{{ couple.points || 0 }} pontos</span>
+            </div>
+
+            <div class="couple-actions" *ngIf="myCouple$ | async as myCouple">
+              <app-button 
+                *ngIf="canChallenge(myCouple, couple, getPosition(allCouples, myCouple), i + 1)"
+                variant="primary" 
+                size="small"
+                [loading]="isLoading"
+                (click)="challengeCouple(couple)">
+                Desafiar
+              </app-button>
             </div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- Ranking Geral -->
-    <section class="ranking-section">
-      <div class="section-header">
-        <h2>Ranking Geral</h2>
-      </div>
+        <ng-template #loading>
+          <div class="loading-state">
+            <p>Carregando ranking...</p>
+          </div>
+        </ng-template>
+      </section>
+    </div>
 
-      <div class="ranking-list" *ngIf="allCouples$ | async as allCouples; else loading">
-        <div class="ranking-item" 
-             *ngFor="let couple of allCouples; let i = index; trackBy: trackByCouple"
-             [class.my-couple]="(myCouple$ | async) && couple.id === (myCouple$ | async)?.id">
-          
-          <div class="position-badge">
-            {{ i + 1 }}º
-          </div>
-          
-          <div class="couple-details">
-            <h4>{{ couple.player1Name }} / {{ couple.player2Name }}</h4>
-            <span class="points">{{ couple.points || 0 }} pontos</span>
-          </div>
-
-          <div class="couple-actions" *ngIf="myCouple$ | async as myCouple">
-            <app-button 
-              *ngIf="canChallenge(myCouple, couple, getPosition(allCouples, myCouple), i + 1)"
-              variant="primary" 
-              size="small"
-              (click)="challengeCouple(couple)">
-              Desafiar
-            </app-button>
-          </div>
+    <!-- ✅ ABA DOS DESAFIOS -->
+    <div class="tab-content" *ngIf="selectedTab === 'challenges'">
+      <section class="challenges-section">
+        <div class="section-header">
+          <h2>Meus Desafios</h2>
+          <p class="section-description">
+            Acompanhe seus desafios enviados e recebidos
+          </p>
         </div>
-      </div>
 
-      <ng-template #loading>
-        <div class="loading-state">
-          <p>Carregando ranking...</p>
+        <div class="challenges-list" *ngIf="challenges$ | async as challenges; else loadingChallenges">
+          <!-- ✅ LISTA DE DESAFIOS -->
+          <div class="challenges-container" *ngIf="challenges.length > 0; else noChallenges">
+            <app-challenge
+              *ngFor="let challenge of challenges; trackBy: trackByChallenge"
+              [challenge]="challenge"
+              [currentCoupleId]="(myCouple$ | async)?.id || ''"
+              [isLoading]="isLoading"
+              (respondToChallenge)="onRespondToChallenge($event)"
+              (proposeDates)="onProposeDates($event)"
+              (selectDate)="onSelectDate($event)"
+              (makeCounterProposal)="onMakeCounterProposal($event)"
+              (respondToCounter)="onRespondToCounter($event)">
+            </app-challenge>
+          </div>
+
+          <!-- ✅ ESTADO VAZIO -->
+          <ng-template #noChallenges>
+            <div class="empty-state">
+              <div class="empty-icon">⚔️</div>
+              <h3>Nenhum desafio ainda</h3>
+              <p>
+                Você ainda não tem desafios enviados ou recebidos.
+                <br>Vá para o ranking e desafie outras duplas!
+              </p>
+              <app-button 
+                variant="primary"
+                (click)="selectTab('ranking')">
+                Ver Ranking
+              </app-button>
+            </div>
+          </ng-template>
         </div>
-      </ng-template>
-    </section>
+
+        <ng-template #loadingChallenges>
+          <div class="loading-state">
+            <p>Carregando desafios...</p>
+          </div>
+        </ng-template>
+      </section>
+    </div>
   </main>
 </div>

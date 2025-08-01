@@ -1,0 +1,159 @@
+<!-- src/app/features/admin/challenge-config/challenge-config.component.html -->
+<div class="challenge-config">
+  <div class="config-header">
+    <h2>⚙️ Configuração de Desafios</h2>
+    <p class="config-description">
+      Configure os tempos limites e regras para o sistema de desafios
+    </p>
+  </div>
+
+  <form [formGroup]="configForm" (ngSubmit)="onSubmit()" class="config-form">
+    
+    <!-- ✅ SEÇÃO DE PRAZOS -->
+    <div class="config-section">
+      <h3>⏰ Prazos</h3>
+      <p class="section-description">
+        Defina os tempos limite para cada etapa do processo de desafio
+      </p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <app-input
+            formControlName="responseTimeHours"
+            label="Tempo para Aceitar/Recusar (horas)"
+            type="number"
+            placeholder="24"
+            [error]="getErrorMessage('responseTimeHours')">
+          </app-input>
+          <small class="field-help">
+            Tempo que a dupla desafiada tem para responder
+            <span *ngIf="responseTimeHours?.value !== null">({{ formatTimeDisplay(responseTimeHours?.value || 24) }})</span>
+          </small>
+        </div>
+
+        <div class="form-group">
+          <app-input
+            formControlName="datesTimeHours"
+            label="Tempo para Propor Datas (horas)"
+            type="number"
+            placeholder="24"
+            [error]="getErrorMessage('datesTimeHours')">
+          </app-input>
+          <small class="field-help">
+            Tempo para enviar as datas propostas após aceitar
+            <span *ngIf="datesTimeHours?.value !== null">({{ formatTimeDisplay(datesTimeHours?.value || 24) }})</span>
+          </small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <app-input
+            formControlName="finalTimeHours"
+            label="Tempo para Decisões Finais (horas)"
+            type="number"
+            placeholder="24"
+            [error]="getErrorMessage('finalTimeHours')">
+          </app-input>
+          <small class="field-help">
+            Tempo para escolher datas e responder contrapropostas
+            <span *ngIf="finalTimeHours?.value !== null">({{ formatTimeDisplay(finalTimeHours?.value || 24) }})</span>
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ SEÇÃO DE REGRAS -->
+    <div class="config-section">
+      <h3>📋 Regras</h3>
+      <p class="section-description">
+        Configure as regras para propostas de datas e desafios
+      </p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <app-input
+            formControlName="minProposedDates"
+            label="Mínimo de Datas a Propor"
+            type="number"
+            placeholder="3"
+            [error]="getErrorMessage('minProposedDates')">
+          </app-input>
+          <small class="field-help">
+            Número mínimo de datas que devem ser propostas
+          </small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              formControlName="requireWeekendDate"
+              class="checkbox-input">
+            <span class="checkbox-text">
+              Exigir pelo menos uma data no final de semana
+            </span>
+          </label>
+          <small class="field-help">
+            Se ativado, pelo menos uma das datas propostas deve ser sábado ou domingo
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ MENSAGENS -->
+    <div class="form-messages">
+      <div class="success-message" *ngIf="successMessage">
+        ✅ {{ successMessage }}
+      </div>
+      
+      <div class="error-message" *ngIf="errorMessage">
+        ❌ {{ errorMessage }}
+      </div>
+    </div>
+
+    <!-- ✅ AÇÕES -->
+    <div class="form-actions">
+      <app-button
+        type="submit"
+        variant="primary"
+        [disabled]="configForm.invalid"
+        [loading]="isLoading">
+        Salvar Configuração
+      </app-button>
+      
+      <app-button
+        type="button"
+        variant="outline"
+        (click)="onReset()"
+        [disabled]="isLoading">
+        Cancelar
+      </app-button>
+    </div>
+  </form>
+
+  <!-- ✅ INFORMAÇÕES ADICIONAIS -->
+  <div class="config-info">
+    <div class="info-card">
+      <h4>💡 Dicas de Configuração</h4>
+      <ul>
+        <li><strong>Prazos curtos</strong> (6-12h) tornam os desafios mais dinâmicos</li>
+        <li><strong>Prazos longos</strong> (48-72h) dão mais flexibilidade às duplas</li>
+        <li><strong>Final de semana obrigatório</strong> facilita a participação de todos</li>
+        <li><strong>Mínimo de 3 datas</strong> oferece mais opções de agendamento</li>
+      </ul>
+    </div>
+
+    <div class="info-card">
+      <h4>⚠️ Importantes</h4>
+      <ul>
+        <li>Mudanças afetam apenas <strong>novos desafios</strong></li>
+        <li>Desafios em andamento mantêm a configuração original</li>
+        <li>Prazos expirados resultam em <strong>troca automática</strong> de posições</li>
+        <li>Sistema verifica expirações <strong>a cada 5 minutos</strong></li>
+      </ul>
+    </div>
+  </div>
+</div>
